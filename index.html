@@ -1,11 +1,10 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : PRODUCTION FINAL - INSTANT UI UPDATE
+  Version : PRODUCTION FINAL - COPYRIGHT ADDED
   
-  Correctifs :
-  - REACTIVITÉ : Les actions Admin (Ajout/Suppression règles, Blocage) mettent à jour l'interface INSTANTANÉMENT (updateGlobalState appelé avant saveConfig).
-  - SYNC : La sauvegarde en base de données se fait en arrière-plan pour ne pas ralentir l'expérience.
-  - FONCTIONNEL : Tout est en place (Tri, Anti-doublon, Design, Multilingue).
+  Mises à jour :
+  - FOOTER : Ajout de la mention de copyright "Jerome M. - Design Studio Lead".
+  - MAINTIEN : Conservation de tous les correctifs précédents (Admin, Synchro, UI).
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -337,6 +336,11 @@
                 </div>
             </div>
         </section>
+        
+        <!-- COPYRIGHT -->
+        <div class="text-center text-[10px] text-slate-400 font-medium mt-8 mb-4 pb-8">
+            &copy; Jerome M. - Design Studio Lead (Golden Palace)
+        </div>
 
         <!-- Sticky Bar -->
         <div id="sticky-action-bar" class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-8px_30px_rgba(0,0,0,0.1)] z-50 p-4 md:px-8 md:py-4">
@@ -516,8 +520,14 @@
                 populateAdminDaySelect(); 
                 renderAdminLists(); 
                 renderLegend();
+                
+                // Update main user selector placeholder
                 const userSel = document.getElementById('user-select');
-                if(userSel.options.length > 0) userSel.options[0].textContent = t('choose_placeholder');
+                const currentVal = userSel.value;
+                // Only update the placeholder if it's the selected or default option
+                if(userSel.options.length > 0 && userSel.options[0].disabled) {
+                     userSel.options[0].textContent = t('choose_placeholder');
+                }
             };
             document.getElementById('lang-fr').onclick = () => update('fr');
             document.getElementById('lang-nl').onclick = () => update('nl');
