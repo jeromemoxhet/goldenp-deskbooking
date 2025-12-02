@@ -1,15 +1,16 @@
 <!--
   Application web de simulation de réservation de bureau.
-  Mise à jour :
-  - Changement de Titre : "Golden Palace - Réservation de place"
-  - Changement de Description : Ajout de l'adresse du siège.
+  Mise à jour ADMIN & ÉTATS :
+  - AJOUT ÉTAT "DÉSACTIVÉ" : Un bureau peut être mis hors service (couleur sombre, icône interdit).
+  - UI ADMIN : Nouvelle section pour gérer la liste des bureaux désactivés.
+  - PERSISTANCE : La liste des bureaux désactivés est stockée dans la config Firestore.
 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Golden Palace - Réservation de place au bureau</title>
+    <title>Golden Palace - Réservation de place</title>
     <!-- Chargement de Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Configuration de la police Inter -->
@@ -57,6 +58,25 @@
             z-index: 20;
         }
 
+        /* Indicateur Désactivé */
+        .disabled-desk-indicator {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #ef4444; /* Rouge vif pour l'icone */
+            color: white;
+            border-radius: 50%;
+            padding: 2px;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            z-index: 20;
+        }
+
         .dept-indicator {
             position: absolute;
             top: -4px;
@@ -74,11 +94,11 @@
 
     <div id="app-container" class="w-full max-w-6xl bg-gray-100 shadow-xl rounded-lg p-6 md:p-8 relative">
         
-        <!-- MODALE MOT DE PASSE (Cachée par défaut) -->
+        <!-- MODALE MOT DE PASSE -->
         <div id="password-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
             <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
                 <h3 class="text-lg font-bold text-gray-800 mb-4">Accès Administrateur</h3>
-                <p class="text-sm text-gray-600 mb-4">Veuillez entrer le mot de passe pour modifier la configuration.</p>
+                <p class="text-sm text-gray-600 mb-4">Veuillez entrer le mot de passe.</p>
                 <input type="password" id="admin-password-input" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Mot de passe...">
                 <div class="flex justify-end gap-3">
                     <button id="cancel-password-btn" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">Annuler</button>
@@ -110,19 +130,16 @@
         </header>
         
         <!-- ZONE ADMIN (Visible seulement si mot de passe OK) -->
-        <div id="admin-config-panel" class="hidden mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg shadow-inner grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div id="admin-config-panel" class="hidden mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg shadow-inner grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             <!-- SECTION 1 : GESTION DES UTILISATEURS -->
-            <div class="bg-white rounded border border-red-100 p-4">
-                <h2 class="text-sm font-bold text-red-800 mb-3 uppercase border-b border-red-100 pb-2 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" /></svg>
-                    Gestion des Utilisateurs
+            <div class="bg-white rounded border border-red-100 p-4 col-span-1">
+                <h2 class="text-sm font-bold text-red-800 mb-3 uppercase border-b border-red-100 pb-2">
+                    Gestion Utilisateurs
                 </h2>
-                
-                <!-- Ajouter Utilisateur -->
-                <div class="grid grid-cols-3 gap-2 mb-4">
-                    <input type="text" id="admin-new-user-name" placeholder="Prénom" class="col-span-1 p-2 border rounded text-xs">
-                    <select id="admin-new-user-dept" class="col-span-1 p-2 border rounded text-xs">
+                <div class="grid grid-cols-1 gap-2 mb-4">
+                    <input type="text" id="admin-new-user-name" placeholder="Prénom" class="p-2 border rounded text-xs">
+                    <select id="admin-new-user-dept" class="p-2 border rounded text-xs">
                         <option value="" disabled selected>Département</option>
                         <option value="Design Studio">Design Studio</option>
                         <option value="Online">Online</option>
@@ -134,48 +151,48 @@
                         <option value="Landbased">Landbased</option>
                         <option value="Corporate">Corporate</option>
                     </select>
-                    <button id="admin-add-user-btn" class="col-span-1 bg-red-600 text-white font-bold py-1 px-2 rounded hover:bg-red-700 text-xs">
-                        + Ajouter
-                    </button>
+                    <button id="admin-add-user-btn" class="bg-red-600 text-white font-bold py-1 px-2 rounded hover:bg-red-700 text-xs">Ajouter</button>
                 </div>
-
-                <!-- Liste Utilisateurs -->
-                <div id="admin-users-list" class="max-h-40 overflow-y-auto space-y-1 text-xs border-t pt-2">
-                    <div class="text-gray-400 italic">Chargement...</div>
-                </div>
+                <div id="admin-users-list" class="max-h-40 overflow-y-auto space-y-1 text-xs border-t pt-2"></div>
             </div>
 
             <!-- SECTION 2 : GESTION DES PLACES FIXES -->
-            <div class="bg-white rounded border border-red-100 p-4">
-                <h2 class="text-sm font-bold text-red-800 mb-3 uppercase border-b border-red-100 pb-2 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 9v-1h5v2H5a1 1 0 01-1-1zm7 1h4a1 1 0 001-1v-1h-5v2zm0-4h5V8h-5v2zM9 8H4v2h5V8z" clip-rule="evenodd" /></svg>
-                    Règles de Places Fixes
+            <div class="bg-white rounded border border-red-100 p-4 col-span-1">
+                <h2 class="text-sm font-bold text-red-800 mb-3 uppercase border-b border-red-100 pb-2">
+                    Règles Places Fixes
                 </h2>
-                
-                <!-- Formulaire d'ajout de règle -->
-                <div class="grid grid-cols-4 gap-2 mb-4">
-                    <select id="admin-day-select" class="col-span-1 p-2 border rounded text-xs font-bold bg-gray-50">
-                        <option value="ALL" class="text-red-600 font-bold">Tous les jours (Lun-Ven)</option>
+                <div class="grid grid-cols-1 gap-2 mb-4">
+                    <select id="admin-day-select" class="p-2 border rounded text-xs font-bold bg-gray-50">
+                        <option value="ALL">Tous les jours (Lun-Ven)</option>
                         <option value="1">Lundi</option>
                         <option value="2">Mardi</option>
                         <option value="3">Mercredi</option>
                         <option value="4">Jeudi</option>
                         <option value="5">Vendredi</option>
                     </select>
-                    <select id="admin-desk-select" class="col-span-1 p-2 border rounded text-xs">
+                    <select id="admin-desk-select" class="p-2 border rounded text-xs"></select>
+                    <select id="admin-rule-user-select" class="p-2 border rounded text-xs"></select>
+                    <button id="admin-add-rule-btn" class="bg-red-600 text-white font-bold py-1 px-2 rounded hover:bg-red-700 text-xs">Ajouter Règle</button>
+                </div>
+                <div id="admin-rules-list" class="max-h-40 overflow-y-auto space-y-1 text-xs border-t pt-2"></div>
+            </div>
+
+             <!-- SECTION 3 : GESTION DES BUREAUX DÉSACTIVÉS (NOUVEAU) -->
+             <div class="bg-white rounded border border-red-100 p-4 col-span-1">
+                <h2 class="text-sm font-bold text-red-800 mb-3 uppercase border-b border-red-100 pb-2">
+                    Bureaux Désactivés
+                </h2>
+                <p class="text-[10px] text-gray-500 mb-2">Ces bureaux seront indisponibles pour tout le monde.</p>
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <select id="admin-disable-desk-select" class="col-span-1 p-2 border rounded text-xs">
                         <!-- Rempli par JS -->
                     </select>
-                    <select id="admin-rule-user-select" class="col-span-1 p-2 border rounded text-xs">
-                        <!-- Rempli par JS -->
-                    </select>
-                    <button id="admin-add-rule-btn" class="col-span-1 bg-red-600 text-white font-bold py-1 px-2 rounded hover:bg-red-700 text-xs">
-                        + Règle
+                    <button id="admin-disable-btn" class="col-span-1 bg-gray-800 text-white font-bold py-1 px-2 rounded hover:bg-black text-xs">
+                        Désactiver
                     </button>
                 </div>
-
-                <!-- Liste des règles existantes -->
-                <div id="admin-rules-list" class="max-h-40 overflow-y-auto space-y-1 text-xs border-t pt-2">
-                    <div class="text-gray-400 italic">Chargement...</div>
+                <div id="admin-disabled-list" class="max-h-40 overflow-y-auto space-y-1 text-xs border-t pt-2">
+                    <!-- Liste des bureaux HS -->
                 </div>
             </div>
         </div>
@@ -220,9 +237,9 @@
             <span class="text-xs font-bold text-gray-400 uppercase mr-2">Légende :</span>
             <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-green-500 border border-green-600 mr-2"></span> Libre</div>
             <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-red-500 border border-red-600 mr-2"></span> Réservé</div>
-            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-gray-600 border border-gray-800 mr-2"></span> <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white inline ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> Fixe (Autre)</div>
-            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-blue-600 border border-blue-800 mr-2"></span> <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white inline ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> Mon Bureau (Fixe)</div>
-            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-blue-500 border border-blue-600 mr-2"></span> Mon Bureau (Réservé)</div>
+            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-gray-600 border border-gray-800 mr-2"></span> <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white inline ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> Fixe</div>
+            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-slate-800 border border-slate-900 mr-2"></span> <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-red-500 inline ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg> Désactivé</div>
+            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-blue-500 border border-blue-600 mr-2"></span> Mon Bureau</div>
             <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-yellow-400 border border-yellow-500 mr-2"></span> Sélection</div>
         </div>
 
@@ -320,14 +337,18 @@
             'Content': ['Gaëlle', 'Marthijn', 'Wies'],
             'Sports Betting': ['Sports Betting User 1', 'Sports Betting User 2']
         };
-        // Variable active pour les utilisateurs
         let usersData = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA));
 
         let selectedUser = { name: null, dept: null, fixedDesk: null };
         let isAdminMode = false;
         
-        // --- DONNÉES PLACES FIXES PAR DÉFAUT ---
-        const DEFAULT_FIXED_ASSIGNMENTS = {
+        // --- DONNÉES CONFIG (FIXES + DISABLED) ---
+        let fixedAssignmentsData = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
+        // NOUVEAU : Liste des bureaux désactivés
+        let disabledDesksData = []; 
+
+        // Données fixes initiales (Hardcodées pour initialisation)
+        const INITIAL_FIXED = {
             1: { // Lundi
                 'D9': { userName: 'Jerome', userDepartment: 'Design Studio' },
                 'D7': { userName: 'Julien', userDepartment: 'Design Studio' },
@@ -351,10 +372,8 @@
             3: { // Mercredi
                 'D4': { userName: 'Eric', userDepartment: 'Design Studio' },
                 'D3': { userName: 'Lucas', userDepartment: 'Design Studio' }
-            },
-            4: {}, 5: {}
+            }
         };
-        let fixedAssignmentsData = JSON.parse(JSON.stringify(DEFAULT_FIXED_ASSIGNMENTS));
 
         const DEPT_COLORS = {
             'Online': 'bg-yellow-400',
@@ -405,16 +424,22 @@
 
         // --- Fonctions Init ---
         function initAdminUI() {
+            // Populate Desk Selects
             const deskSelect = document.getElementById('admin-desk-select');
-            deskSelect.innerHTML = ''; // Clear to avoid duplicates on re-init
+            const deskDisableSelect = document.getElementById('admin-disable-desk-select');
+            deskSelect.innerHTML = ''; 
+            deskDisableSelect.innerHTML = '';
+            
             DESKS_LIST.forEach(d => {
                 const opt = document.createElement('option');
                 opt.value = d; opt.textContent = d;
-                deskSelect.appendChild(opt);
+                deskSelect.appendChild(opt.cloneNode(true));
+                deskDisableSelect.appendChild(opt.cloneNode(true));
             });
 
-            updateAdminUserSelect(); // Call to populate user select
+            updateAdminUserSelect(); 
 
+            // Toggle Logic (Password)
             const toggle = document.getElementById('admin-mode-toggle');
             const modal = document.getElementById('password-modal');
             const passwordInput = document.getElementById('admin-password-input');
@@ -453,14 +478,13 @@
 
                 if(!newName || !newDept) return alert("Nom et département requis.");
 
-                // Add to local state
                 if (!usersData[newDept]) usersData[newDept] = [];
                 if (!usersData[newDept].includes(newName)) {
                     usersData[newDept].push(newName);
                     await saveUsersToFirestore();
                     renderAdminUsersList();
                     updateAdminUserSelect();
-                    initUserSelector(); // Refresh main dropdown
+                    initUserSelector(); 
                     document.getElementById('admin-new-user-name').value = '';
                     displayMessage(`Utilisateur ${newName} ajouté.`, 'success');
                 } else {
@@ -478,14 +502,12 @@
                 const [name, dept] = userVal.split('|');
 
                 if (dayValue === 'ALL') {
-                    // Ajouter la règle pour TOUS les jours (1 à 5)
                     for (let d = 1; d <= 5; d++) {
                         if (!fixedAssignmentsData[d]) fixedAssignmentsData[d] = {};
                         fixedAssignmentsData[d][desk] = { userName: name, userDepartment: dept };
                     }
                     displayMessage(`Règle ajoutée : ${name} sur ${desk} pour TOUS les jours.`, 'success');
                 } else {
-                    // Ajouter pour un jour spécifique
                     if (!fixedAssignmentsData[dayValue]) fixedAssignmentsData[dayValue] = {};
                     fixedAssignmentsData[dayValue][desk] = { userName: name, userDepartment: dept };
                     displayMessage(`Règle ajoutée : ${name} sur ${desk}.`, 'success');
@@ -493,19 +515,29 @@
 
                 await saveConfigToFirestore();
                 renderAdminRulesList();
-                
-                // Si la date affichée est concernée, on rafraichit
-                const currentDayIndex = getDayOfWeekIndex(currentDateString);
-                if (dayValue === 'ALL' || dayValue == currentDayIndex) {
+                if (dayValue === 'ALL' || dayValue == getDayOfWeekIndex(currentDateString)) {
                     listenToReservations();
+                }
+            });
+
+            // ADMIN: Disable Desk
+            document.getElementById('admin-disable-btn').addEventListener('click', async () => {
+                const deskToDisable = document.getElementById('admin-disable-desk-select').value;
+                if(!deskToDisable) return;
+                
+                if(!disabledDesksData.includes(deskToDisable)) {
+                    disabledDesksData.push(deskToDisable);
+                    await saveConfigToFirestore();
+                    renderAdminDisabledList();
+                    listenToReservations(); // Refresh map to show black desk
+                    displayMessage(`Bureau ${deskToDisable} désactivé.`, 'success');
                 }
             });
         }
 
         function updateAdminUserSelect() {
-            const userSelect = document.getElementById('admin-user-select'); // For rules
+            const userSelect = document.getElementById('admin-user-select'); // For rules (if any other select)
             const userSelectRule = document.getElementById('admin-rule-user-select');
-            if(!userSelect && !userSelectRule) return; // Guard if elements missing
             
             const targets = [userSelect, userSelectRule].filter(el => el);
             
@@ -528,6 +560,7 @@
             displayMessage("Mode Admin activé.", 'success');
             renderAdminRulesList();
             renderAdminUsersList();
+            renderAdminDisabledList();
             renderDeskMap(); 
             if(selectedDeskId) handleDeskClick(selectedDeskId);
         }
@@ -543,17 +576,14 @@
         function renderAdminUsersList() {
             const list = document.getElementById('admin-users-list');
             list.innerHTML = '';
-            
             for (const dept in usersData) {
                 usersData[dept].forEach(name => {
                     const row = document.createElement('div');
                     row.className = "flex justify-between items-center py-1 hover:bg-gray-100 px-2 border-b border-gray-100";
                     row.innerHTML = `<span>${name} <span class="text-gray-400 text-[10px]">(${dept})</span></span>`;
-                    
                     const delBtn = document.createElement('button');
                     delBtn.innerHTML = "&times;";
                     delBtn.className = "text-red-600 font-bold hover:bg-red-100 rounded px-2";
-                    delBtn.title = "Supprimer";
                     delBtn.onclick = async () => {
                         if(confirm(`Supprimer ${name} ?`)) {
                             usersData[dept] = usersData[dept].filter(u => u !== name);
@@ -581,12 +611,10 @@
                     dayTitle.className = "font-bold mt-2 text-gray-700 border-b";
                     dayTitle.textContent = days[d];
                     list.appendChild(dayTitle);
-
                     for (const [desk, data] of Object.entries(rules)) {
                         const row = document.createElement('div');
                         row.className = "flex justify-between items-center py-1 hover:bg-gray-100 px-2";
                         row.innerHTML = `<span><b>${desk}</b> : ${data.userName}</span>`;
-                        
                         const delBtn = document.createElement('button');
                         delBtn.textContent = "Suppr.";
                         delBtn.className = "text-xs text-red-600 hover:underline ml-2";
@@ -603,12 +631,38 @@
             }
         }
 
-        // --- Firestore Config Logic (Fixed Assignments) ---
+        function renderAdminDisabledList() {
+            const list = document.getElementById('admin-disabled-list');
+            list.innerHTML = '';
+            if(disabledDesksData.length === 0) {
+                list.innerHTML = '<div class="text-gray-400 italic">Aucun bureau désactivé.</div>';
+                return;
+            }
+            disabledDesksData.forEach(deskId => {
+                const row = document.createElement('div');
+                row.className = "flex justify-between items-center py-1 hover:bg-gray-100 px-2";
+                row.innerHTML = `<span><b>${deskId}</b> (Hors Service)</span>`;
+                const delBtn = document.createElement('button');
+                delBtn.textContent = "Réactiver";
+                delBtn.className = "text-xs text-green-600 hover:underline ml-2";
+                delBtn.onclick = async () => {
+                    disabledDesksData = disabledDesksData.filter(id => id !== deskId);
+                    await saveConfigToFirestore();
+                    renderAdminDisabledList();
+                    listenToReservations();
+                };
+                row.appendChild(delBtn);
+                list.appendChild(row);
+            });
+        }
+
+        // --- Firestore Config Logic ---
         async function saveConfigToFirestore() {
             if (!db) return;
             try {
                 await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/main`), {
-                    fixedAssignments: JSON.stringify(fixedAssignmentsData)
+                    fixedAssignments: JSON.stringify(fixedAssignmentsData),
+                    disabledDesks: JSON.stringify(disabledDesksData)
                 });
             } catch (e) { console.error("Error saving config", e); }
         }
@@ -621,17 +675,34 @@
                     if (data.fixedAssignments) {
                         try {
                             fixedAssignmentsData = JSON.parse(data.fixedAssignments);
-                            if (isAdminMode) renderAdminRulesList();
-                            listenToReservations();
-                        } catch (e) { console.error("Error parsing config", e); }
+                        } catch (e) { console.error("Error parsing config fixed", e); }
                     }
+                    if (data.disabledDesks) {
+                        try {
+                            disabledDesksData = JSON.parse(data.disabledDesks);
+                        } catch (e) { console.error("Error parsing config disabled", e); }
+                    }
+                    
+                    // Si première fois et données par défaut (initialisation)
+                    if (Object.keys(fixedAssignmentsData).length === 0 && Object.keys(INITIAL_FIXED).length > 0) {
+                        // Merge initial logic if needed, but here we assume DB overwrites default.
+                        // If DB was empty but existed (rare case), we might want to push default.
+                    }
+
+                    if (isAdminMode) {
+                        renderAdminRulesList();
+                        renderAdminDisabledList();
+                    }
+                    listenToReservations();
                 } else {
+                    // Initial Save
+                    fixedAssignmentsData = INITIAL_FIXED;
                     saveConfigToFirestore();
                 }
             });
         }
 
-        // --- Firestore Users Logic (Nouveau) ---
+        // --- Firestore Users Logic ---
         async function saveUsersToFirestore() {
             if (!db) return;
             try {
@@ -649,7 +720,7 @@
                     if (data.usersData) {
                         try {
                             usersData = JSON.parse(data.usersData);
-                            initUserSelector(); // Refresh UI with loaded users
+                            initUserSelector(); 
                             if(isAdminMode) {
                                 renderAdminUsersList();
                                 updateAdminUserSelect();
@@ -657,13 +728,13 @@
                         } catch (e) { console.error("Error parsing users", e); }
                     }
                 } else {
-                    // Initial save if empty
                     saveUsersToFirestore();
                 }
             });
         }
 
         // --- Fonctions Standard ---
+        // ... (initUserSelector, initDateSelector, checkFridayStats, checkFixedAssignment, updateDayLabel, getDayOfWeekIndex remain mostly same) ...
 
         function initUserSelector() {
             const select = document.getElementById('user-select');
@@ -736,13 +807,14 @@
             selectedUser.fixedDesk = null;
             const dayIndex = getDayOfWeekIndex(currentDateString);
             const fixedToday = fixedAssignmentsData[dayIndex] || {};
-
             if (!selectedUser.name) return;
-
+            // Check if user has a fixed desk TODAY, but ONLY if that desk is NOT disabled
             for (const deskId in fixedToday) {
                 if (fixedToday[deskId].userName === selectedUser.name) {
-                    selectedUser.fixedDesk = deskId;
-                    displayMessage(`${selectedUser.name}, vous avez une place fixe (${deskId}) réservée ce jour.`, 'info');
+                    if (!disabledDesksData.includes(deskId)) {
+                        selectedUser.fixedDesk = deskId;
+                        displayMessage(`${selectedUser.name}, vous avez une place fixe (${deskId}) réservée ce jour.`, 'info');
+                    }
                     break;
                 }
             }
@@ -761,32 +833,22 @@
         function getDayOfWeekIndex(dateStr) { return new Date(dateStr + 'T00:00:00').getDay(); }
 
         // --- Rendering ---
-        function getDepartmentIcon(department) {
-            const svgClass = "h-5 w-5 mb-1";
-            let path = "M3 4h18M3 8h18m-6 4v12m-6-12v12m-9 0h18"; // Default
-            switch (department) {
-                 case 'CRM': path = 'M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M7 11A4 4 0 0 0 7 3a4 4 0 0 0 0 8zm14 2 2 2-6 6'; break;
-                case 'Digital': case 'Digital Marketing': path = 'M12 2a10 10 0 0 0 10 10 10 10 0 0 0-10 10A10 10 0 0 0 2 12 10 10 0 0 0 12 2zm0 2c-1.3 0-2.6.4-3.7 1.1M12 20c1.3 0 2.6-.4 3.7-1.1M5.9 5.9c.7 1.1 1.1 2.4 1.1 3.7m11.2 11.2c-.7-1.1-1.1-2.4-1.1-3.7M2 12h20M12 2v20'; break;
-                case 'SoMe': path = 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'; break;
-                case 'Design Studio': path = 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM17 10l-4 4-2-2-4 4M10 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2z'; break;
-                case 'Content': path = 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M9 15h6M9 11h6'; break;
-                case 'Online': path = 'M13 2L3 14h8l-1 8 11-12h-8l1-8z'; break;
-                case 'Sports Betting': path = 'M12 11h-1V3H6v8H5v1h14v-1h-1zm-6-6h5v2H6V5zm10 0h5v2h-5V5zM4 19h16M7 21h10'; break;
-            }
-            return `<svg xmlns="http://www.w3.org/2000/svg" class="${svgClass}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="${path}" /></svg>`;
-        }
 
         function createDeskElement(deskId, isCluster = false) {
             const reservation = allReservations[deskId];
             const isReservedByMe = currentReservation && currentReservation.deskId === deskId;
             const isSelected = selectedDeskId === deskId;
             
-            const isFixed = reservation && reservation.isFixed === true;
-            const isReservedByOther = reservation && reservation.userId !== userId && !isFixed;
-            const isUserBlockedByFixed = selectedUser.fixedDesk && (selectedUser.fixedDesk === deskId || !isReservedByMe);
+            // Check Disabled First
+            const isDisabled = disabledDesksData.includes(deskId);
+
+            const isFixed = !isDisabled && reservation && reservation.isFixed === true;
+            const isReservedByOther = !isDisabled && reservation && reservation.userId !== userId && !isFixed;
+            const isUserBlockedByFixed = !isDisabled && selectedUser.fixedDesk && (selectedUser.fixedDesk === deskId || !isReservedByMe);
 
             let cursorClass = "cursor-pointer";
-            if (!isAdminMode && (isReservedByOther || isFixed || isUserBlockedByFixed)) cursorClass = "cursor-not-allowed";
+            // En mode admin, on peut cliquer même si désactivé pour réactiver ou gérer
+            if (!isAdminMode && (isDisabled || isReservedByOther || isFixed || isUserBlockedByFixed)) cursorClass = "cursor-not-allowed";
             
             let baseClasses = `flex flex-col items-center justify-center p-0.5 rounded-lg transition duration-150 shadow-md text-center flex-shrink-0 border relative h-16 w-14 text-xs ${cursorClass} `;
             let colors = "";
@@ -795,31 +857,38 @@
             let lockIcon = "";
             let deptIndicator = "";
 
-            if (isFixed || isReservedByOther || isReservedByMe) {
-                subText = reservation.userName.split(' ')[0];
-                const deptColorClass = DEPT_COLORS[reservation.userDepartment] || 'bg-gray-400';
-                deptIndicator = `<div class="dept-indicator ${deptColorClass}"></div>`;
-            }
-
-            if (isFixed) {
-                if (reservation.userName === selectedUser.name) {
-                    colors = "bg-blue-600 text-white border-blue-800 opacity-90 ring-2 ring-blue-300";
-                } else {
-                    colors = "bg-gray-600 text-white border-gray-700 opacity-90";
+            if (isDisabled) {
+                colors = "bg-slate-800 text-gray-400 border-slate-900 opacity-100";
+                statusText = "HS";
+                lockIcon = `<div class="disabled-desk-indicator"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></div>`;
+            } 
+            else {
+                if (isFixed || isReservedByOther || isReservedByMe) {
+                    subText = reservation.userName.split(' ')[0];
+                    const deptColorClass = DEPT_COLORS[reservation.userDepartment] || 'bg-gray-400';
+                    deptIndicator = `<div class="dept-indicator ${deptColorClass}"></div>`;
                 }
-                statusText = "FIXE";
-                lockIcon = `<div class="fixed-desk-indicator"><svg xmlns="http://www.w3.org/2000/svg" class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg></div>`;
-            } else if (isReservedByMe) {
-                colors = "bg-blue-500 hover:bg-blue-600 text-white border-blue-700 ring-2 ring-blue-300";
-                statusText = "MOI";
-            } else if (isReservedByOther) {
-                colors = "bg-red-400 text-white opacity-90 border-red-500 desk-reserved-by-other";
-                statusText = "PRIS";
-            } else if (isSelected) {
-                colors = "bg-yellow-400 hover:bg-yellow-500 text-gray-800 border-yellow-700 ring-4 ring-yellow-300 scale-105";
-                statusText = "SÉLECT.";
-            } else {
-                colors = "bg-green-100 hover:bg-green-200 text-green-800 border-green-300";
+
+                if (isFixed) {
+                    if (reservation.userName === selectedUser.name) {
+                        colors = "bg-blue-600 text-white border-blue-800 opacity-90 ring-2 ring-blue-300";
+                    } else {
+                        colors = "bg-gray-600 text-white border-gray-700 opacity-90";
+                    }
+                    statusText = "FIXE";
+                    lockIcon = `<div class="fixed-desk-indicator"><svg xmlns="http://www.w3.org/2000/svg" class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg></div>`;
+                } else if (isReservedByMe) {
+                    colors = "bg-blue-500 hover:bg-blue-600 text-white border-blue-700 ring-2 ring-blue-300";
+                    statusText = "MOI";
+                } else if (isReservedByOther) {
+                    colors = "bg-red-400 text-white opacity-90 border-red-500 desk-reserved-by-other";
+                    statusText = "PRIS";
+                } else if (isSelected) {
+                    colors = "bg-yellow-400 hover:bg-yellow-500 text-gray-800 border-yellow-700 ring-4 ring-yellow-300 scale-105";
+                    statusText = "SÉLECT.";
+                } else {
+                    colors = "bg-green-100 hover:bg-green-200 text-green-800 border-green-300";
+                }
             }
 
             const el = document.createElement('div');
@@ -828,12 +897,13 @@
             
             if (isAdminMode) {
                  el.addEventListener('click', () => handleDeskClick(deskId));
-            } else if (!isReservedByOther && !isFixed && !isUserBlockedByFixed) {
+            } else if (!isDisabled && !isReservedByOther && !isFixed && !isUserBlockedByFixed) {
                 el.addEventListener('click', () => handleDeskClick(deskId));
             }
             return el;
         }
 
+        // ... (renderIsland, renderTopGroup, renderDeskMap are identical, just call updated createDeskElement) ...
         function renderIsland(islandData) {
             const container = document.createElement('div');
             container.className = `flex flex-col items-center flex-1 w-full p-2 border border-gray-400 bg-white rounded-xl`;
@@ -882,7 +952,22 @@
         function handleDeskClick(deskId) {
              if (!selectedUser.name) return displayMessage("Veuillez sélectionner votre profil.", 'error');
             const reservation = allReservations[deskId];
+            const isDisabled = disabledDesksData.includes(deskId);
+
             if (isAdminMode) {
+                // Admin actions on Disabled Desk
+                if (isDisabled) {
+                    if(confirm(`Réactiver le bureau ${deskId} ?`)) {
+                        disabledDesksData = disabledDesksData.filter(id => id !== deskId);
+                        saveConfigToFirestore().then(() => {
+                             renderAdminDisabledList();
+                             renderDeskMap();
+                             displayMessage(`Bureau ${deskId} réactivé.`, 'success');
+                        });
+                    }
+                    return;
+                }
+
                 selectedDeskId = deskId;
                 const info = reservation ? `Occupé par ${reservation.userName} (${reservation.userDepartment})` : "Libre";
                 document.getElementById('selected-desk-info').innerHTML = `<b>${deskId}</b> : ${info}`;
@@ -894,9 +979,12 @@
                     document.getElementById('admin-delete-btn').classList.add('hidden');
                     document.getElementById('confirm-reservation-btn').classList.remove('hidden');
                 }
-                renderDeskMap(); return;
+                renderDeskMap(); 
+                return;
             }
             
+            if (isDisabled) return displayMessage(`Le bureau ${deskId} est hors service.`, 'error');
+
             if(selectedUser.fixedDesk && selectedUser.fixedDesk !== deskId) return displayMessage(`Vous avez déjà une place fixe (${selectedUser.fixedDesk}).`, 'error');
             if (reservation && reservation.isFixed) {
                 if(reservation.userName === selectedUser.name) return displayMessage(`Votre place fixe.`, 'info');
