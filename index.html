@@ -1,317 +1,395 @@
 <!--
-  Application web de simulation de réservation de bureau.
-  Mise à jour ADMIN & ÉTATS :
-  - AJOUT ÉTAT "DÉSACTIVÉ" : Un bureau peut être mis hors service (couleur sombre, icône interdit).
-  - UI ADMIN : Nouvelle section pour gérer la liste des bureaux désactivés.
-  - PERSISTANCE : La liste des bureaux désactivés est stockée dans la config Firestore.
+  Application web de réservation de bureau - Golden Palace
+  Version : FINAL POLISH + USER INFO UI HARMONIZATION
+  
+  Mises à jour :
+  - FICHE UTILISATEUR : Suppression de l'icône d'habillage inutile.
+  - AFFICHAGE JOURS FIXES : Affichage des jours complets (Lundi, Mardi...).
+  - ALIGNEMENT : Harmonisation de l'alignement des données dans la fiche (labels à gauche, valeurs/statuts à droite).
 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Golden Palace - Réservation de place</title>
-    <!-- Chargement de Tailwind CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Golden Palace - Réservation</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configuration de la police Inter -->
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined|Material+Icons+Round" rel="stylesheet">
+    <!-- Google Fonts Inter -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+            background-color: #f8fafc; /* Slate 50 */
+            color: #0f172a; /* Slate 900 */
+            padding-bottom: 140px; /* Espace pour le footer sticky */
         }
-        .desk-reserved-by-other {
-            line-height: 1.1;
+
+        /* --- Custom UI --- */
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1.5rem;
+            overflow: visible; 
         }
-        .justify-self-end { justify-self: end; }
-        .justify-self-start { justify-self: start; }
-        
-        .zone-label {
-            position: absolute;
-            top: -10px;
-            left: 10px;
-            background: #f9fafb;
-            padding: 0 5px;
-            font-size: 0.65rem;
+
+        .section-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .step-badge {
+            background-color: #4f46e5;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-weight: 700;
-            color: #9ca3af;
+            font-size: 0.8rem;
+            margin-right: 0.75rem;
+        }
+
+        .section-title {
+            font-weight: 800;
+            font-size: 1rem;
+            color: #334155;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            z-index: 10;
+            letter-spacing: 0.02em;
+        }
+
+        /* --- Desk Styling --- */
+        .desk-wrapper {
+            position: relative;
+            width: 3.8rem;
+            height: 4.5rem;
+            z-index: 1;
+        }
+        .desk-wrapper:hover { z-index: 10; }
+
+        .desk-box {
+            width: 100%;
+            height: 100%;
+            border-radius: 0.75rem;
+            border-width: 2px;
+            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .desk-wrapper:active .desk-box { transform: scale(0.95); }
+        
+        .floating-badge {
+            position: absolute;
+            top: -8px; 
+            right: -8px; 
+            border-radius: 50%;
+            width: 24px; 
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 30;
+            border: 2px solid white;
+            font-size: 14px; 
+            background-color: #334155;
+            color: white;
+            pointer-events: none;
         }
         
-        .fixed-desk-indicator {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background-color: #374151;
-            color: white;
-            border-radius: 50%;
-            padding: 2px;
-            width: 16px;
-            height: 16px;
+        /* Sticky Footer */
+        #sticky-action-bar {
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #sticky-action-bar.visible { transform: translateY(0); }
+
+        .legend-pill {
+            display: flex; align-items: center; font-size: 0.75rem; font-weight: 600; color: #64748b;
+            background: white; padding: 4px 8px; border-radius: 6px; border: 1px solid #e2e8f0;
+        }
+
+        .zone-header {
+            width: 100%; text-align: center; font-size: 0.7rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8;
+            background-color: #f1f5f9; padding: 0.5rem; border-radius: 8px;
+            margin-bottom: 1rem; border: 1px dashed #cbd5e1;
+        }
+
+        .toggle-checkbox:checked { right: 0; border-color: #4f46e5; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #4f46e5; }
+        .toggle-checkbox:checked + .toggle-label:before { transform: translateX(100%); }
+        
+        .lang-btn-active { background-color: #f1f5f9; color: #334155; }
+        .lang-btn-inactive { color: #94a3b8; }
+        .lang-btn-inactive:hover { background-color: #f8fafc; }
+        
+        /* ADMIN button alignment fix */
+        .admin-button-group {
+            height: 40px; 
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 9px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            z-index: 20;
         }
-
-        /* Indicateur Désactivé */
-        .disabled-desk-indicator {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background-color: #ef4444; /* Rouge vif pour l'icone */
-            color: white;
-            border-radius: 50%;
-            padding: 2px;
-            width: 16px;
-            height: 16px;
+        .admin-button-group button {
+            height: 100%;
+            width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 9px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            z-index: 20;
         }
-
-        .dept-indicator {
-            position: absolute;
-            top: -4px;
-            left: -4px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            z-index: 15;
+        
+        /* User Info Card Grid */
+        .info-grid-row {
+            display: grid;
+            grid-template-columns: 1fr max-content;
+            align-items: center;
+            padding: 4px 0;
         }
     </style>
 </head>
-<body class="min-h-screen flex items-start justify-center p-4 sm:p-6 md:p-8">
+<body class="antialiased text-slate-800">
 
-    <div id="app-container" class="w-full max-w-6xl bg-gray-100 shadow-xl rounded-lg p-6 md:p-8 relative">
+    <div id="app-container" class="w-full max-w-5xl mx-auto relative px-4 pt-6">
         
-        <!-- MODALE MOT DE PASSE -->
-        <div id="password-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Accès Administrateur</h3>
-                <p class="text-sm text-gray-600 mb-4">Veuillez entrer le mot de passe.</p>
-                <input type="password" id="admin-password-input" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Mot de passe...">
-                <div class="flex justify-end gap-3">
-                    <button id="cancel-password-btn" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">Annuler</button>
-                    <button id="submit-password-btn" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold">Valider</button>
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div class="flex items-center gap-4">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-800 tracking-tight leading-none" data-i18n="main_title">Golden Palace - Réservation de sièges</h1>
+                    <p class="text-sm text-slate-500 font-medium mt-1" data-i18n="subtitle">Paysager - Croix de guerre 120</p>
                 </div>
             </div>
-        </div>
 
-        <!-- En-tête -->
-        <header class="mb-6 border-b border-gray-300 pb-4 flex flex-col md:flex-row justify-between items-start md:items-end">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-800 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                    </svg>
-                    Golden Palace - Réservation de place
-                </h1>
-                <p class="text-sm text-gray-500 mt-1 ml-8">Gérez vos jours de présence au bureau (Siège - Avenue des Croix de Guerre 120 - Bruxelles)</p>
-            </div>
-            
-            <!-- TOGGLE MODE ADMIN SÉCURISÉ -->
-            <div class="mt-4 md:mt-0 flex items-center bg-gray-200 rounded-full p-1 pr-3">
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="admin-mode-toggle" class="sr-only peer">
-                    <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                    <span class="ml-3 text-sm font-medium text-gray-700 select-none">Mode Admin</span>
-                </label>
+            <div class="flex items-center gap-4">
+                <div class="bg-white border border-slate-200 rounded-lg p-1 flex shadow-sm">
+                    <button id="lang-fr" class="px-3 py-1 text-xs font-bold rounded-md transition">FR</button>
+                    <button id="lang-nl" class="px-3 py-1 text-xs font-bold rounded-md transition">NL</button>
+                    <button id="lang-en" class="px-3 py-1 text-xs font-bold rounded-md transition">EN</button>
+                </div>
+                <div class="flex items-center">
+                    <label for="admin-mode-toggle" class="flex items-center cursor-pointer">
+                        <div class="relative">
+                            <input type="checkbox" id="admin-mode-toggle" class="sr-only">
+                            <div class="block bg-slate-200 w-10 h-6 rounded-full transition-colors duration-300 ease-in-out" id="toggle-bg"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out shadow-sm"></div>
+                        </div>
+                        <div class="ml-3 text-xs font-bold text-slate-400 uppercase tracking-wide" data-i18n="admin_mode">Admin</div>
+                    </label>
+                </div>
             </div>
         </header>
-        
-        <!-- ZONE ADMIN (Visible seulement si mot de passe OK) -->
-        <div id="admin-config-panel" class="hidden mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg shadow-inner grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <!-- SECTION 1 : GESTION DES UTILISATEURS -->
-            <div class="bg-white rounded border border-red-100 p-4 col-span-1">
-                <h2 class="text-sm font-bold text-red-800 mb-3 uppercase border-b border-red-100 pb-2">
-                    Gestion Utilisateurs
-                </h2>
-                <div class="grid grid-cols-1 gap-2 mb-4">
-                    <input type="text" id="admin-new-user-name" placeholder="Prénom" class="p-2 border rounded text-xs">
-                    <select id="admin-new-user-dept" class="p-2 border rounded text-xs">
-                        <option value="" disabled selected>Département</option>
-                        <option value="Design Studio">Design Studio</option>
-                        <option value="Online">Online</option>
-                        <option value="Digital Marketing">Digital Marketing</option>
-                        <option value="CRM">CRM</option>
-                        <option value="SoMe">SoMe</option>
-                        <option value="Content">Content</option>
-                        <option value="Sports Betting">Sports Betting</option>
-                        <option value="Landbased">Landbased</option>
-                        <option value="Corporate">Corporate</option>
-                    </select>
-                    <button id="admin-add-user-btn" class="bg-red-600 text-white font-bold py-1 px-2 rounded hover:bg-red-700 text-xs">Ajouter</button>
-                </div>
-                <div id="admin-users-list" class="max-h-40 overflow-y-auto space-y-1 text-xs border-t pt-2"></div>
-            </div>
 
-            <!-- SECTION 2 : GESTION DES PLACES FIXES -->
-            <div class="bg-white rounded border border-red-100 p-4 col-span-1">
-                <h2 class="text-sm font-bold text-red-800 mb-3 uppercase border-b border-red-100 pb-2">
-                    Règles Places Fixes
-                </h2>
-                <div class="grid grid-cols-1 gap-2 mb-4">
-                    <select id="admin-day-select" class="p-2 border rounded text-xs font-bold bg-gray-50">
-                        <option value="ALL">Tous les jours (Lun-Ven)</option>
-                        <option value="1">Lundi</option>
-                        <option value="2">Mardi</option>
-                        <option value="3">Mercredi</option>
-                        <option value="4">Jeudi</option>
-                        <option value="5">Vendredi</option>
-                    </select>
-                    <select id="admin-desk-select" class="p-2 border rounded text-xs"></select>
-                    <select id="admin-rule-user-select" class="p-2 border rounded text-xs"></select>
-                    <button id="admin-add-rule-btn" class="bg-red-600 text-white font-bold py-1 px-2 rounded hover:bg-red-700 text-xs">Ajouter Règle</button>
-                </div>
-                <div id="admin-rules-list" class="max-h-40 overflow-y-auto space-y-1 text-xs border-t pt-2"></div>
-            </div>
+        <!-- Toast -->
+        <div id="message-area" class="hidden fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full shadow-2xl font-bold text-sm text-center animate-bounce-in transition-all"></div>
 
-             <!-- SECTION 3 : GESTION DES BUREAUX DÉSACTIVÉS (NOUVEAU) -->
-             <div class="bg-white rounded border border-red-100 p-4 col-span-1">
-                <h2 class="text-sm font-bold text-red-800 mb-3 uppercase border-b border-red-100 pb-2">
-                    Bureaux Désactivés
-                </h2>
-                <p class="text-[10px] text-gray-500 mb-2">Ces bureaux seront indisponibles pour tout le monde.</p>
-                <div class="grid grid-cols-2 gap-2 mb-4">
-                    <select id="admin-disable-desk-select" class="col-span-1 p-2 border rounded text-xs">
-                        <!-- Rempli par JS -->
-                    </select>
-                    <button id="admin-disable-btn" class="col-span-1 bg-gray-800 text-white font-bold py-1 px-2 rounded hover:bg-black text-xs">
-                        Désactiver
-                    </button>
-                </div>
-                <div id="admin-disabled-list" class="max-h-40 overflow-y-auto space-y-1 text-xs border-t pt-2">
-                    <!-- Liste des bureaux HS -->
+        <!-- Password Modal -->
+        <div id="password-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[70] hidden">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-80 transform transition-all scale-100">
+                <h3 class="text-lg font-bold text-slate-800 mb-2 text-center" data-i18n="admin_access">Accès Admin</h3>
+                <input type="password" id="admin-password-input" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 text-center focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-lg" placeholder="••••••">
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="cancel-password-btn" class="py-2 text-slate-500 hover:bg-slate-50 rounded-lg font-bold text-sm" data-i18n="cancel">Annuler</button>
+                    <button id="submit-password-btn" class="py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm shadow-md hover:bg-indigo-700" data-i18n="validate">Valider</button>
                 </div>
             </div>
         </div>
 
-        <!-- ZONE DE CONFIGURATION (PROFIL & DATE) -->
-        <div class="mb-6 p-5 bg-white rounded-lg border border-gray-200 shadow-md">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                <!-- Profil -->
-                <div class="col-span-1 md:col-span-2">
-                    <label for="user-select" class="block text-sm font-bold text-gray-800 mb-2">1. Qui réserve ?</label>
-                    <div class="relative">
-                        <select id="user-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm bg-gray-50 text-base appearance-none"></select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-700">
-                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                        </div>
-                    </div>
-                    <div class="mt-3 flex flex-wrap items-center gap-4">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs text-gray-500">Département :</span>
-                            <span id="current-dept-display" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">---</span>
-                        </div>
-                        <div id="friday-status-container" class="hidden flex items-center gap-2 bg-gray-50 px-3 py-1 rounded border border-gray-200">
-                            <span class="text-xs font-bold text-gray-600">Objectif Vendredi :</span>
-                            <span id="friday-counter-display" class="text-xs font-medium">Calcul...</span>
-                        </div>
-                        <span id="user-id-display" class="hidden"></span>
-                    </div>
-                </div>
-                <!-- Date -->
-                <div class="col-span-1">
-                    <label for="date-selector" class="block text-sm font-bold text-gray-800 mb-2">2. Pour quelle date ?</label>
-                    <div class="flex items-center shadow-sm rounded-lg">
-                        <input type="date" id="date-selector" class="w-full p-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base cursor-pointer bg-gray-50">
-                        <span id="day-label" class="bg-indigo-50 text-indigo-700 border-t border-b border-r border-gray-300 rounded-r-lg px-4 py-3 text-sm font-bold min-w-[90px] text-center flex items-center justify-center h-[50px]">...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Légende -->
-        <div class="flex flex-wrap gap-4 mb-4 text-sm p-3 bg-white rounded-lg shadow-sm border border-gray-200 items-center justify-center md:justify-start">
-            <span class="text-xs font-bold text-gray-400 uppercase mr-2">Légende :</span>
-            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-green-500 border border-green-600 mr-2"></span> Libre</div>
-            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-red-500 border border-red-600 mr-2"></span> Réservé</div>
-            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-gray-600 border border-gray-800 mr-2"></span> <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white inline ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> Fixe</div>
-            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-slate-800 border border-slate-900 mr-2"></span> <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-red-500 inline ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg> Désactivé</div>
-            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-blue-500 border border-blue-600 mr-2"></span> Mon Bureau</div>
-            <div class="flex items-center"><span class="w-4 h-4 rounded-full bg-yellow-400 border border-yellow-500 mr-2"></span> Sélection</div>
-        </div>
-
-        <!-- PLAN DE BUREAU -->
-        <div id="desk-map-layout" class="w-full flex flex-col gap-6 bg-white p-4 rounded-xl border border-gray-300 shadow-xl relative">
-            <!-- Rangée Supérieure -->
-            <div class="relative pt-2">
-                <span class="zone-label">Zone Digital Marketing / Clusters</span>
-                <div id="top-row-container" class="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 border border-gray-200 rounded-lg bg-gray-50"></div>
-            </div>
-            <!-- Rangée Inférieure -->
-            <div class="flex flex-col md:flex-row gap-6 w-full">
-                <div class="relative pt-2 w-full md:w-1/2">
-                    <span class="zone-label">Zone Online Products</span>
-                    <div id="online-islands-container" class="flex flex-row gap-2 p-2 border border-gray-200 rounded-lg bg-gray-50 h-full"></div>
-                </div>
-                <div class="relative pt-2 w-full md:w-1/2">
-                    <span class="zone-label">Zone Design Studio</span>
-                    <div id="design-islands-container" class="flex flex-row gap-2 p-2 border border-gray-200 rounded-lg bg-gray-50 h-full"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Légende Départements -->
-        <div class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 text-center md:text-left">
-            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Couleurs des équipes</h3>
-            <div class="flex flex-wrap gap-x-6 gap-y-2 text-xs text-gray-700 justify-center md:justify-start">
-                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-orange-500 border border-white shadow-sm mr-1.5"></span> Design Studio</div>
-                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-400 border border-white shadow-sm mr-1.5"></span> Online</div>
-                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-cyan-500 border border-white shadow-sm mr-1.5"></span> Digital</div>
-                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-fuchsia-500 border border-white shadow-sm mr-1.5"></span> CRM</div>
-                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-violet-500 border border-white shadow-sm mr-1.5"></span> SoMe</div>
-                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-600 border border-white shadow-sm mr-1.5"></span> Content</div>
-                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-emerald-500 border border-white shadow-sm mr-1.5"></span> Sports Betting</div>
-                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-lime-500 border border-white shadow-sm mr-1.5"></span> Landbased</div>
-                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-pink-500 border border-white shadow-sm mr-1.5"></span> Corporate</div>
-            </div>
-        </div>
-
-        <!-- Panneau Action -->
-        <div id="reservation-panel" class="mt-6 p-6 bg-indigo-50 border-t-4 border-indigo-500 rounded-lg hidden shadow-lg">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+        <!-- Admin Panel (Styles Harmonized) -->
+        <div id="admin-config-panel" class="hidden mb-6 bg-red-50 border-2 border-red-200 rounded-xl p-5 shadow-inner">
+            <h2 class="section-title text-red-700 mb-4 flex items-center gap-2">
+                <span class="material-icons-round text-lg">admin_panel_settings</span> <span data-i18n="admin_config">Configuration Admin</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Add User -->
                 <div>
-                    <h2 class="text-lg font-bold text-indigo-800">3. Confirmer la Réservation</h2>
-                    <div id="selected-desk-info" class="text-md font-medium text-gray-700 mb-4"></div>
+                    <label class="block text-xs font-bold text-red-400 uppercase mb-1" data-i18n="add_user">Ajouter Utilisateur</label>
+                    <div class="flex gap-1 mb-2">
+                        <input id="admin-new-user-name" placeholder="Nom" class="w-full p-2 text-xs border border-red-200 rounded focus:ring-red-500">
+                        <select id="admin-new-user-dept" class="w-full p-2 text-xs border border-red-200 rounded bg-white focus:ring-red-500"></select>
+                        <div class="admin-button-group w-1/2">
+                            <button id="admin-add-user-btn" class="bg-slate-700 text-white px-3 py-2 rounded text-xs font-bold hover:bg-slate-800 transition shadow-sm" data-i18n="add">Ajouter</button>
+                        </div>
+                    </div>
+                    <div id="admin-users-list" class="h-24 overflow-y-auto bg-white rounded border border-red-100 p-1 space-y-1"></div>
                 </div>
-                <div class="flex gap-4 w-full md:w-auto">
-                    <button id="confirm-reservation-btn" class="flex-grow bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 shadow transition transform hover:scale-105">Confirmer</button>
-                    <button id="admin-delete-btn" class="flex-grow bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 shadow transition hidden">Libérer (Admin)</button>
-                    <button id="cancel-selection-btn" class="flex-grow bg-white text-indigo-600 border border-indigo-600 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition">Annuler</button>
+                <!-- Rules -->
+                <div>
+                    <label class="block text-xs font-bold text-red-400 uppercase mb-1" data-i18n="fixed_rules">Règles Fixes</label>
+                    <div class="flex gap-1 flex-wrap mb-2">
+                        <select id="admin-day-select" class="w-full p-2 text-xs border border-red-200 rounded font-bold bg-white focus:ring-red-500"></select>
+                        <select id="admin-desk-select" class="w-1/3 p-2 text-xs border border-red-200 rounded bg-white focus:ring-red-500"></select>
+                        <select id="admin-rule-user-select" class="flex-1 p-2 text-xs border border-red-200 rounded bg-white focus:ring-red-500"></select>
+                        <div class="admin-button-group w-full">
+                            <button id="admin-add-rule-btn" class="bg-slate-700 text-white py-2 rounded text-xs font-bold hover:bg-slate-800 transition shadow-sm" data-i18n="add">Ajouter</button>
+                        </div>
+                    </div>
+                    <div id="admin-rules-list" class="h-24 overflow-y-auto bg-white rounded border border-red-100 p-1 space-y-1"></div>
+                </div>
+                <!-- Disable -->
+                <div>
+                    <label class="block text-xs font-bold text-red-400 uppercase mb-1" data-i18n="disable_desk">Désactiver Bureau</label>
+                    <div class="flex gap-1 mb-2">
+                        <select id="admin-disable-desk-select" class="flex-1 p-2 text-xs border border-red-200 rounded focus:ring-red-500"></select>
+                        <div class="admin-button-group w-1/3">
+                            <button id="admin-disable-btn" class="bg-red-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-red-700 transition shadow-sm" data-i18n="block">Bloquer</button>
+                        </div>
+                    </div>
+                    <div id="admin-disabled-list" class="h-24 overflow-y-auto bg-white rounded border border-red-100 p-1 space-y-1"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Messages -->
-        <div id="message-area" class="mt-4 hidden p-3 rounded-lg text-sm font-medium text-center"></div>
+        <!-- STEP 1 -->
+        <section class="card relative z-10">
+            <div class="section-header">
+                <div class="step-badge">1</div>
+                <h2 class="section-title" data-i18n="my_info">Mes Informations</h2>
+            </div>
+            <div class="p-6 bg-slate-50/50">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="identity">Identité</label>
+                            <div class="relative">
+                                <select id="user-select" class="w-full p-3 pl-4 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer shadow-sm"></select>
+                                <span class="material-icons-round absolute right-3 top-3 text-slate-400 pointer-events-none">expand_more</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="date">Date</label>
+                            <div class="flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                <input type="date" id="date-selector" class="flex-1 p-3 outline-none text-slate-800 font-semibold cursor-pointer">
+                                <div id="day-label" class="px-5 bg-indigo-50 border-l border-indigo-100 flex items-center text-indigo-700 font-bold text-sm uppercase">...</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="user-info-card" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-center relative">
+                        <!-- Remplacé le cercle d'habillage par un contenu plus fonctionnel et aligné -->
+                        
+                        <div class="info-grid-row border-b border-slate-100 mb-3 pb-3">
+                            <span class="text-xs text-slate-400 font-bold uppercase" data-i18n="department">Département</span>
+                            <span id="user-dept-badge" class="text-[10px] px-2 py-1 rounded-full font-bold text-white uppercase tracking-wide bg-slate-300">...</span>
+                        </div>
+                        
+                        <div class="info-grid-row mb-4">
+                            <span class="text-xs text-slate-400 font-bold uppercase" data-i18n="friday_goal">Objectif Vendredi</span>
+                            <span id="user-friday-stats" class="text-sm font-bold text-slate-700">...</span>
+                        </div>
+                        
+                        <div class="flex flex-col">
+                            <span class="text-xs text-slate-400 font-bold uppercase mb-2" data-i18n="fixed_days">Jours Fixes</span>
+                            <div id="user-fixed-days" class="flex flex-col gap-1 text-sm">
+                                <span class="text-xs italic text-slate-400">...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        <!-- Statut Actuel -->
-        <div id="my-current-desk" class="mt-6 p-4 bg-white border border-dashed border-indigo-300 rounded-lg text-sm text-gray-600 flex flex-col md:flex-row justify-between items-center">
-            <div id="current-reservation-status" class="font-semibold text-indigo-600 text-center md:text-left mb-2 md:mb-0">Aucun bureau réservé pour cette date.</div>
-            <button id="cancel-my-reservation-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded text-sm hover:bg-red-600 hidden transition shadow">Libérer ma place</button>
+        <!-- STEP 2 -->
+        <section class="card mb-32 relative z-0">
+            <div class="section-header justify-between sticky top-0 bg-white/95 backdrop-blur z-30 shadow-sm">
+                <div class="flex items-center">
+                    <div class="step-badge">2</div>
+                    <h2 class="section-title" data-i18n="book_place">Je réserve ma place</h2>
+                </div>
+                <div class="hidden sm:flex gap-2">
+                    <div class="legend-pill border-green-400 text-green-700"><span class="material-icons-round text-sm mr-1">check_circle_outline</span> <span data-i18n="free">Libre</span></div>
+                    <div class="legend-pill border-red-300 bg-red-50 text-red-600"><span class="material-icons-round text-sm mr-1">block</span> <span data-i18n="occupied">Occupé</span></div>
+                    <div class="legend-pill border-blue-600 bg-blue-50 text-blue-700"><span class="material-icons-round text-sm mr-1">person</span> <span data-i18n="my_res">Ma rés.</span></div>
+                    <div class="legend-pill border-slate-300 bg-slate-100 text-slate-500"><span class="material-icons-round text-sm mr-1">lock</span> <span data-i18n="fixed">Fixe</span></div>
+                </div>
+            </div>
+            
+            <div class="p-6 bg-slate-50/50">
+                <div id="desk-map-layout" class="w-full flex flex-col gap-8 select-none pb-4">
+                    
+                    <!-- Top Zone -->
+                    <div class="relative bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                        <div class="zone-header" data-i18n="zone_digital">ZONE DIGITAL / CLUSTERS</div>
+                        <div id="top-row-container" class="grid grid-cols-2 md:grid-cols-4 gap-6 justify-items-center"></div>
+                    </div>
+                    
+                    <!-- Bottom Zones -->
+                    <div class="flex flex-col md:flex-row gap-6 w-full">
+                        <div class="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                            <div class="zone-header" data-i18n="zone_online">ZONE ONLINE PRODUCTS</div>
+                            <div id="online-islands-container" class="flex flex-row gap-4 justify-center h-full items-start"></div>
+                        </div>
+                        <div class="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                            <div class="zone-header" data-i18n="zone_design">ZONE DESIGN STUDIO</div>
+                            <div id="design-islands-container" class="flex flex-row gap-4 justify-center h-full items-start"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 pt-6 border-t border-slate-200">
+                     <p class="text-[10px] font-bold text-slate-400 uppercase mb-3" data-i18n="legend_dept">Départements</p>
+                     <div class="flex flex-wrap gap-2" id="legend-dept-container"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sticky Bar -->
+        <div id="sticky-action-bar" class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-8px_30px_rgba(0,0,0,0.1)] z-50 p-4 md:px-8 md:py-4">
+            <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                <div id="bar-status-area" class="flex items-center gap-4 w-full md:w-auto bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
+                    <div id="default-bar-status" class="flex items-center gap-3">
+                         <div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-sm">
+                             <span class="material-icons-round">event_seat</span>
+                         </div>
+                         <div class="flex flex-col">
+                             <span class="text-[10px] font-bold text-slate-400 uppercase" data-i18n="my_status">Mon Statut</span>
+                             <span id="my-status-text" class="text-sm font-bold text-slate-700" data-i18n="no_res">Aucune réservation</span>
+                         </div>
+                    </div>
+                    <div id="selection-bar-status" class="hidden flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-indigo-200">
+                            <span id="selected-desk-id">A1</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-indigo-400 uppercase" data-i18n="selection">Sélection</span>
+                            <span id="selected-desk-detail" class="text-sm font-bold text-indigo-900">Libre</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <button id="quick-cancel-btn" class="hidden flex-1 md:flex-none px-5 py-3 border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50 text-xs uppercase tracking-wide transition" data-i18n="free_my_place">Libérer ma place</button>
+                    <button id="cancel-selection-btn" class="hidden flex-1 md:flex-none px-5 py-3 border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 text-xs uppercase tracking-wide transition" data-i18n="cancel">Annuler</button>
+                    <button id="confirm-reservation-btn" class="hidden flex-1 md:flex-none px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 text-sm transform active:scale-95 transition flex items-center gap-2">
+                        <span class="material-icons-round text-sm">check_circle</span> <span data-i18n="reserve">Réserver</span>
+                    </button>
+                    <button id="admin-delete-btn" class="hidden flex-1 md:flex-none px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 shadow-lg shadow-red-200 text-sm" data-i18n="admin_free">Admin: Libérer</button>
+                </div>
+            </div>
         </div>
 
     </div>
 
-    <!-- Scripts -->
+    <!-- Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const appId = 'desk-booking-app';
+        // CONFIG
+        const appId = 'desk-booking-app'; 
         const firebaseConfig = {
           apiKey: "AIzaSyBIR1kFwjCLFi8TEh9UJWeid9nvfvGSSs4",
           authDomain: "deskreservation-8e1dc.firebaseapp.com",
@@ -321,12 +399,184 @@
           appId: "1:317414717446:web:847a7fcb596a4abee92b87",
           measurementId: "G-W14YR02JY6"
         };
-        const initialAuthToken = null;
-        
-        // CONFIGURATION
         const ADMIN_PASSWORD = "admin123"; 
-        
-        // --- DONNÉES UTILISATEURS PAR DÉFAUT ---
+
+        // TRANSLATIONS
+        const TRANSLATIONS = {
+            fr: {
+                main_title: "Golden Palace - Réservation de sièges",
+                subtitle: "Paysager - Croix de guerre 120",
+                admin_mode: "Admin",
+                admin_access: "Accès Admin",
+                cancel: "Annuler",
+                validate: "Valider",
+                admin_config: "Configuration Admin",
+                add_user: "Ajouter Utilisateur",
+                fixed_rules: "Règles Fixes",
+                add: "Ajouter",
+                disable_desk: "Désactiver Bureau",
+                block: "Bloquer",
+                my_info: "Mes Informations",
+                identity: "Identité",
+                date: "Date",
+                department: "Département",
+                friday_goal: "Objectif Vendredi",
+                fixed_days: "Jours Fixes",
+                book_place: "Je réserve ma place",
+                free: "Libre",
+                occupied: "Occupé",
+                my_res: "Ma rés.",
+                fixed: "Fixe",
+                zone_digital: "ZONE DIGITAL / CLUSTERS",
+                zone_online: "ZONE ONLINE PRODUCTS",
+                zone_design: "ZONE DESIGN STUDIO",
+                legend_dept: "Départements",
+                my_status: "Mon Statut",
+                no_res: "Aucune réservation",
+                selection: "Sélection",
+                free_my_place: "Libérer ma place",
+                reserve: "Réserver",
+                admin_free: "Admin: Libérer",
+                days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'],
+                none: "Aucun",
+                validated: "Validé ✅",
+                fixed_place: "Place Fixe :",
+                reserved: "Réservé :",
+                occupied_by: "Occupé par",
+                desk_disabled: "Bureau hors service",
+                is_your_fixed: "C'est votre place fixe.",
+                is_your_res: "C'est votre réservation.",
+                release_first: "Libérez votre place actuelle d'abord.",
+                fixed_error: "Place fixe attribuée pour ce jour.",
+                res_confirmed: "Réservation confirmée !",
+                place_freed: "Place libérée",
+                select_profile: "Sélectionnez votre profil (Étape 1)",
+                delete_confirm: "Supprimer ?",
+                choose_placeholder: "Choisir...",
+                all_days: "Tous les jours (L-V)",
+                blocked_status: "Bloqué"
+            },
+            nl: {
+                main_title: "Golden Palace - Stoelreservering",
+                subtitle: "Paysager - Croix de guerre 120",
+                admin_mode: "Admin",
+                admin_access: "Admin Toegang",
+                cancel: "Annuleren",
+                validate: "Bevestigen",
+                admin_config: "Admin Configuratie",
+                add_user: "Gebruiker Toevoegen",
+                fixed_rules: "Vaste Regels",
+                add: "Toevoegen",
+                disable_desk: "Bureau Blokkeren",
+                block: "Blokkeer",
+                my_info: "Mijn Gegevens",
+                identity: "Identiteit",
+                date: "Datum",
+                department: "Afdeling",
+                friday_goal: "Doelstelling Vrijdag",
+                fixed_days: "Vaste Dagen",
+                book_place: "Ik reserveer mijn plek",
+                free: "Vrij",
+                occupied: "Bezet",
+                my_res: "Mijn res.",
+                fixed: "Vast",
+                zone_digital: "ZONE DIGITAL / CLUSTERS",
+                zone_online: "ZONE ONLINE PRODUCTS",
+                zone_design: "ZONE DESIGN STUDIO",
+                legend_dept: "Afdelingen",
+                my_status: "Mijn Status",
+                no_res: "Geen reservatie",
+                selection: "Selectie",
+                free_my_place: "Mijn plek vrijgeven",
+                reserve: "Reserveren",
+                admin_free: "Admin: Vrijgeven",
+                days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'],
+                none: "Geen",
+                validated: "Gevalideerd ✅",
+                fixed_place: "Vaste Plek:",
+                reserved: "Gereserveerd:",
+                occupied_by: "Bezet door",
+                desk_disabled: "Bureau buiten gebruik",
+                is_your_fixed: "Dit is uw vaste plek.",
+                is_your_res: "Dit is uw reservatie.",
+                release_first: "Geef eerst uw huidige plek vrij.",
+                fixed_error: "Vaste plek toegewezen voor vandaag.",
+                res_confirmed: "Reservatie bevestigd!",
+                place_freed: "Plek vrijgegeven",
+                select_profile: "Selecteer uw profiel (Stap 1)",
+                delete_confirm: "Verwijderen ?",
+                choose_placeholder: "Kies...",
+                all_days: "Alle dagen (M-V)",
+                blocked_status: "Geblokkeerd"
+            },
+            en: {
+                main_title: "Golden Palace - Seat Reservation",
+                subtitle: "Paysager - Croix de guerre 120",
+                admin_mode: "Admin",
+                admin_access: "Admin Access",
+                cancel: "Cancel",
+                validate: "Validate",
+                admin_config: "Admin Configuration",
+                add_user: "Add User",
+                fixed_rules: "Fixed Rules",
+                add: "Add",
+                disable_desk: "Disable Desk",
+                block: "Block",
+                my_info: "My Information",
+                identity: "Identity",
+                date: "Date",
+                department: "Department",
+                friday_goal: "Friday Goal",
+                fixed_days: "Fixed Days",
+                book_place: "Book my seat",
+                free: "Free",
+                occupied: "Taken",
+                my_res: "My res.",
+                fixed: "Fixed",
+                zone_digital: "DIGITAL ZONE / CLUSTERS",
+                zone_online: "ONLINE PRODUCTS ZONE",
+                zone_design: "DESIGN STUDIO ZONE",
+                legend_dept: "Departments",
+                my_status: "My Status",
+                no_res: "No reservation",
+                selection: "Selection",
+                free_my_place: "Free my seat",
+                reserve: "Book",
+                admin_free: "Admin: Free",
+                days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                none: "None",
+                validated: "Validated ✅",
+                fixed_place: "Fixed Seat:",
+                reserved: "Booked:",
+                occupied_by: "Occupied by",
+                desk_disabled: "Desk disabled",
+                is_your_fixed: "This is your fixed seat.",
+                is_your_res: "This is your booking.",
+                release_first: "Release your current seat first.",
+                fixed_error: "Fixed seat assigned for today.",
+                res_confirmed: "Booking confirmed!",
+                place_freed: "Seat released",
+                select_profile: "Select your profile (Step 1)",
+                delete_confirm: "Delete ?",
+                choose_placeholder: "Choose...",
+                all_days: "All days (M-F)",
+                blocked_status: "Blocked"
+            }
+        };
+        let currentLang = 'fr';
+
+        const DEPT_COLORS = {
+            'Online': 'bg-yellow-400',
+            'Sports Betting': 'bg-emerald-500',
+            'Content': 'bg-red-600',
+            'CRM': 'bg-fuchsia-500',
+            'Digital Marketing': 'bg-cyan-500',
+            'SoMe': 'bg-violet-500',
+            'Design Studio': 'bg-orange-500',
+            'Landbased': 'bg-lime-500',
+            'Corporate': 'bg-pink-500'
+        };
+
         const DEFAULT_USERS_DATA = {
             'CRM': ['Charlotte', 'Killian', 'Maxime'],
             'SoMe': ['Doha', 'Stella', 'Juliette', 'Chanel'],
@@ -337,64 +587,6 @@
             'Content': ['Gaëlle', 'Marthijn', 'Wies'],
             'Sports Betting': ['Sports Betting User 1', 'Sports Betting User 2']
         };
-        let usersData = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA));
-
-        let selectedUser = { name: null, dept: null, fixedDesk: null };
-        let isAdminMode = false;
-        
-        // --- DONNÉES CONFIG (FIXES + DISABLED) ---
-        let fixedAssignmentsData = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
-        // NOUVEAU : Liste des bureaux désactivés
-        let disabledDesksData = []; 
-
-        // Données fixes initiales (Hardcodées pour initialisation)
-        const INITIAL_FIXED = {
-            1: { // Lundi
-                'D9': { userName: 'Jerome', userDepartment: 'Design Studio' },
-                'D7': { userName: 'Julien', userDepartment: 'Design Studio' },
-                'D6': { userName: 'Héloise', userDepartment: 'Design Studio' },
-                'D8': { userName: 'Minh', userDepartment: 'Design Studio' },
-                'D12': { userName: 'Ben', userDepartment: 'Design Studio' },
-                'D11': { userName: 'Kelly', userDepartment: 'Design Studio' },
-                'D10': { userName: 'Laure', userDepartment: 'Design Studio' }
-            },
-            2: { // Mardi
-                'D9': { userName: 'Jerome', userDepartment: 'Design Studio' },
-                'D7': { userName: 'Julien', userDepartment: 'Design Studio' },
-                'D6': { userName: 'Héloise', userDepartment: 'Design Studio' },
-                'D8': { userName: 'Minh', userDepartment: 'Design Studio' },
-                'D12': { userName: 'Ben', userDepartment: 'Design Studio' },
-                'D11': { userName: 'Kelly', userDepartment: 'Design Studio' },
-                'D10': { userName: 'Laure', userDepartment: 'Design Studio' },
-                'D4': { userName: 'Eric', userDepartment: 'Design Studio' },
-                'D3': { userName: 'Lucas', userDepartment: 'Design Studio' }
-            },
-            3: { // Mercredi
-                'D4': { userName: 'Eric', userDepartment: 'Design Studio' },
-                'D3': { userName: 'Lucas', userDepartment: 'Design Studio' }
-            }
-        };
-
-        const DEPT_COLORS = {
-            'Online': 'bg-yellow-400',
-            'Sports Betting': 'bg-emerald-500', 
-            'Content': 'bg-red-600',
-            'CRM': 'bg-fuchsia-500',
-            'Digital Marketing': 'bg-cyan-500', 
-            'SoMe': 'bg-violet-500',
-            'Design Studio': 'bg-orange-500',
-            'Landbased': 'bg-lime-500', 
-            'Corporate': 'bg-pink-500' 
-        };
-
-        const DESKS_LIST = [
-            'L1', 'L2', 'L3', 'L4',
-            'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9',
-            'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8',
-            'D9', 'D10', 'D11', 'D12', 'D13', 'D14', 'D15', 'D16',
-            'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8',
-            'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'
-        ];
 
         const DESK_LAYOUT = {
             'TOP_ROW': {
@@ -405,367 +597,135 @@
                     { title: 'Cluster (A7-A9)', desks: ['A7', 'A8', 'A9'], type: 'triangular' },
                 ]
             },
-            'DESIGN_STUDIO_1': { 
-                title: 'Ilot Design 1 (D1-D8)', col1: ['D1', 'D2', 'D3', 'D4'], col2: ['D5', 'D6', 'D7', 'D8'], size: 8
-            },
-            'DESIGN_STUDIO_2': { 
-                title: 'Ilot Design 2 (D9-D16)', col1: ['D9', 'D10', 'D11', 'D12'], col2: ['D13', 'D14', 'D15', 'D16'], size: 8
-            },
-            'ONLINE_F': {
-                title: 'Ilot Online 1 (F1-F8)', col1: ['F1', 'F2', 'F3', 'F4'], col2: ['F5', 'F6', 'F7', 'F8'], size: 8
-            },
-            'ONLINE_G': {
-                title: 'Ilot Online 2 (G1-G8)', col1: ['G1', 'G2', 'G3', 'G4'], col2: ['G5', 'G6', 'G7', 'G8'], size: 8
-            }
+            'DESIGN_STUDIO_1': { title: 'Ilot Design 1 (D1-D8)', col1: ['D1', 'D2', 'D3', 'D4'], col2: ['D5', 'D6', 'D7', 'D8'], size: 8 },
+            'DESIGN_STUDIO_2': { title: 'Ilot Design 2 (D9-D16)', col1: ['D9', 'D10', 'D11', 'D12'], col2: ['D13', 'D14', 'D15', 'D16'], size: 8 },
+            'ONLINE_F': { title: 'Ilot Online 1 (F1-F8)', col1: ['F1', 'F2', 'F3', 'F4'], col2: ['F5', 'F6', 'F7', 'F8'], size: 8 },
+            'ONLINE_G': { title: 'Ilot Online 2 (G1-G8)', col1: ['G1', 'G2', 'G3', 'G4'], col2: ['G5', 'G6', 'G7', 'G8'], size: 8 }
         };
+        const DESKS_LIST = []; 
+        Object.values(DESK_LAYOUT).forEach(section => {
+             if(section.groups) section.groups.forEach(g => g.desks.forEach(d => DESKS_LIST.push(d)));
+             if(section.col1) { section.col1.forEach(d => DESKS_LIST.push(d)); section.col2.forEach(d => DESKS_LIST.push(d)); }
+        });
 
-        let db, auth, userId = null, selectedDeskId = null, currentReservation = null, allReservations = {};
-        let currentDateString = ""; 
+        // --- STATE ---
+        let db, auth, userId = null;
+        let usersData = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA));
+        let fixedAssignmentsData = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
+        let disabledDesksData = [];
+        
+        let selectedUser = { name: null, dept: null, fixedDesk: null };
+        let currentDateString = "";
+        let selectedDeskId = null;
+        let currentReservation = null;
+        let allReservations = {};
+        let isAdminMode = false;
 
-        // --- Fonctions Init ---
-        function initAdminUI() {
-            // Populate Desk Selects
-            const deskSelect = document.getElementById('admin-desk-select');
-            const deskDisableSelect = document.getElementById('admin-disable-desk-select');
-            deskSelect.innerHTML = ''; 
-            deskDisableSelect.innerHTML = '';
+        // --- INIT ---
+        async function init() {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
             
-            DESKS_LIST.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d; opt.textContent = d;
-                deskSelect.appendChild(opt.cloneNode(true));
-                deskDisableSelect.appendChild(opt.cloneNode(true));
+            initTranslations();
+            setupUIListeners();
+            setupStickyBarVisibility();
+            
+            loadConfig();
+            loadUsers();
+            
+            try { await signInAnonymously(auth); } catch (e) {}
+            onAuthStateChanged(auth, (u) => { if(u) { userId = u.uid; listenReservations(); } });
+        }
+
+        // --- TRANSLATION LOGIC ---
+        function initTranslations() {
+            const update = (lang) => {
+                currentLang = lang;
+                ['fr','nl','en'].forEach(l => {
+                    const btn = document.getElementById(`lang-${l}`);
+                    btn.className = (lang === l) ? "px-3 py-1 text-xs font-bold rounded-md bg-slate-100 text-slate-700 transition lang-btn-active" : "px-3 py-1 text-xs font-bold rounded-md text-slate-400 hover:bg-slate-50 transition lang-btn-inactive";
+                });
+                
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if(TRANSLATIONS[lang][key]) el.textContent = TRANSLATIONS[lang][key];
+                });
+                
+                updateDayLabel(currentDateString);
+                updateStickyBar();
+                updateUserInfoCard();
+                populateAdminDaySelect(); 
+                renderAdminLists(); 
+                renderLegend();
+                
+                const userSel = document.getElementById('user-select');
+                if(userSel.options.length > 0) userSel.options[0].textContent = t('choose_placeholder');
+            };
+            document.getElementById('lang-fr').onclick = () => update('fr');
+            document.getElementById('lang-nl').onclick = () => update('nl');
+            document.getElementById('lang-en').onclick = () => update('en');
+            update('fr');
+        }
+        function t(key) { return TRANSLATIONS[currentLang][key] || key; }
+
+        // --- UI ---
+        function renderLegend() {
+            const container = document.getElementById('legend-dept-container');
+            container.innerHTML = '';
+            Object.keys(DEPT_COLORS).forEach(dept => {
+                const color = DEPT_COLORS[dept];
+                const span = document.createElement('span');
+                // New Legend Style: small bar
+                span.className = "text-[10px] font-semibold text-slate-600 flex items-center bg-white px-2 py-1 rounded border border-slate-200";
+                span.innerHTML = `<span class="w-3 h-1.5 rounded-sm ${color} mr-1.5"></span>${dept}`;
+                container.appendChild(span);
             });
+        }
 
-            updateAdminUserSelect(); 
+        function populateAdminDaySelect() {
+            const sel = document.getElementById('admin-day-select');
+            const currentVal = sel.value;
+            sel.innerHTML = '';
+            
+            const days = t('days');
+            sel.add(new Option(t('all_days'), 'ALL'));
+            for(let i=1; i<=5; i++) {
+                sel.add(new Option(days[i], i.toString()));
+            }
+            if(currentVal) sel.value = currentVal;
+        }
 
-            // Toggle Logic (Password)
+        function setupUIListeners() {
+            // Admin Toggle Animation
             const toggle = document.getElementById('admin-mode-toggle');
-            const modal = document.getElementById('password-modal');
-            const passwordInput = document.getElementById('admin-password-input');
-            const cancelBtn = document.getElementById('cancel-password-btn');
-            const submitBtn = document.getElementById('submit-password-btn');
-
+            const bg = document.getElementById('toggle-bg');
+            const dot = document.querySelector('.dot');
             toggle.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    modal.classList.remove('hidden');
-                    passwordInput.value = '';
-                    passwordInput.focus();
+                if(e.target.checked) {
+                    dot.style.transform = 'translateX(100%)';
+                    bg.classList.remove('bg-slate-200'); bg.classList.add('bg-red-600');
+                    document.getElementById('password-modal').classList.remove('hidden');
+                    document.getElementById('admin-password-input').value = '';
+                    document.getElementById('admin-password-input').focus();
                 } else {
+                    dot.style.transform = 'translateX(0)';
+                    bg.classList.add('bg-slate-200'); bg.classList.remove('bg-red-600');
                     disableAdminMode();
                 }
             });
 
-            cancelBtn.addEventListener('click', () => {
-                modal.classList.add('hidden');
-                toggle.checked = false; 
-            });
-
-            submitBtn.addEventListener('click', () => {
-                if (passwordInput.value === ADMIN_PASSWORD) {
-                    modal.classList.add('hidden');
-                    enableAdminMode();
-                } else {
-                    alert("Mot de passe incorrect.");
-                    passwordInput.value = '';
-                }
-            });
-
-            // ADMIN: Add User
-            document.getElementById('admin-add-user-btn').addEventListener('click', async () => {
-                const newName = document.getElementById('admin-new-user-name').value.trim();
-                const newDept = document.getElementById('admin-new-user-dept').value;
-
-                if(!newName || !newDept) return alert("Nom et département requis.");
-
-                if (!usersData[newDept]) usersData[newDept] = [];
-                if (!usersData[newDept].includes(newName)) {
-                    usersData[newDept].push(newName);
-                    await saveUsersToFirestore();
-                    renderAdminUsersList();
-                    updateAdminUserSelect();
-                    initUserSelector(); 
-                    document.getElementById('admin-new-user-name').value = '';
-                    displayMessage(`Utilisateur ${newName} ajouté.`, 'success');
-                } else {
-                    alert("Utilisateur existe déjà.");
-                }
-            });
-
-            // ADMIN: Add Rule
-            document.getElementById('admin-add-rule-btn').addEventListener('click', async () => {
-                const dayValue = document.getElementById('admin-day-select').value;
-                const desk = document.getElementById('admin-desk-select').value;
-                const userVal = document.getElementById('admin-rule-user-select').value;
-
-                if (!userVal) return alert("Sélectionnez un utilisateur");
-                const [name, dept] = userVal.split('|');
-
-                if (dayValue === 'ALL') {
-                    for (let d = 1; d <= 5; d++) {
-                        if (!fixedAssignmentsData[d]) fixedAssignmentsData[d] = {};
-                        fixedAssignmentsData[d][desk] = { userName: name, userDepartment: dept };
-                    }
-                    displayMessage(`Règle ajoutée : ${name} sur ${desk} pour TOUS les jours.`, 'success');
-                } else {
-                    if (!fixedAssignmentsData[dayValue]) fixedAssignmentsData[dayValue] = {};
-                    fixedAssignmentsData[dayValue][desk] = { userName: name, userDepartment: dept };
-                    displayMessage(`Règle ajoutée : ${name} sur ${desk}.`, 'success');
-                }
-
-                await saveConfigToFirestore();
-                renderAdminRulesList();
-                if (dayValue === 'ALL' || dayValue == getDayOfWeekIndex(currentDateString)) {
-                    listenToReservations();
-                }
-            });
-
-            // ADMIN: Disable Desk
-            document.getElementById('admin-disable-btn').addEventListener('click', async () => {
-                const deskToDisable = document.getElementById('admin-disable-desk-select').value;
-                if(!deskToDisable) return;
-                
-                if(!disabledDesksData.includes(deskToDisable)) {
-                    disabledDesksData.push(deskToDisable);
-                    await saveConfigToFirestore();
-                    renderAdminDisabledList();
-                    listenToReservations(); // Refresh map to show black desk
-                    displayMessage(`Bureau ${deskToDisable} désactivé.`, 'success');
-                }
-            });
-        }
-
-        function updateAdminUserSelect() {
-            const userSelect = document.getElementById('admin-user-select'); // For rules (if any other select)
-            const userSelectRule = document.getElementById('admin-rule-user-select');
-            
-            const targets = [userSelect, userSelectRule].filter(el => el);
-            
-            targets.forEach(sel => {
-                sel.innerHTML = '';
-                for (const dept in usersData) {
-                    usersData[dept].forEach(name => {
-                        const opt = document.createElement('option');
-                        opt.value = `${name}|${dept}`;
-                        opt.textContent = `${name} (${dept})`;
-                        sel.appendChild(opt);
-                    });
-                }
-            });
-        }
-
-        function enableAdminMode() {
-            isAdminMode = true;
-            document.getElementById('admin-config-panel').classList.remove('hidden');
-            displayMessage("Mode Admin activé.", 'success');
-            renderAdminRulesList();
-            renderAdminUsersList();
-            renderAdminDisabledList();
-            renderDeskMap(); 
-            if(selectedDeskId) handleDeskClick(selectedDeskId);
-        }
-
-        function disableAdminMode() {
-            isAdminMode = false;
-            document.getElementById('admin-config-panel').classList.add('hidden');
-            selectedDeskId = null;
-            document.getElementById('reservation-panel').classList.add('hidden');
-            renderDeskMap();
-        }
-
-        function renderAdminUsersList() {
-            const list = document.getElementById('admin-users-list');
-            list.innerHTML = '';
-            for (const dept in usersData) {
-                usersData[dept].forEach(name => {
-                    const row = document.createElement('div');
-                    row.className = "flex justify-between items-center py-1 hover:bg-gray-100 px-2 border-b border-gray-100";
-                    row.innerHTML = `<span>${name} <span class="text-gray-400 text-[10px]">(${dept})</span></span>`;
-                    const delBtn = document.createElement('button');
-                    delBtn.innerHTML = "&times;";
-                    delBtn.className = "text-red-600 font-bold hover:bg-red-100 rounded px-2";
-                    delBtn.onclick = async () => {
-                        if(confirm(`Supprimer ${name} ?`)) {
-                            usersData[dept] = usersData[dept].filter(u => u !== name);
-                            await saveUsersToFirestore();
-                            renderAdminUsersList();
-                            updateAdminUserSelect();
-                            initUserSelector();
-                        }
-                    };
-                    row.appendChild(delBtn);
-                    list.appendChild(row);
-                });
-            }
-        }
-
-        function renderAdminRulesList() {
-            const list = document.getElementById('admin-rules-list');
-            list.innerHTML = '';
-            const days = {1:'Lundi', 2:'Mardi', 3:'Mercredi', 4:'Jeudi', 5:'Vendredi'};
-
-            for (let d = 1; d <= 5; d++) {
-                const rules = fixedAssignmentsData[d];
-                if (rules && Object.keys(rules).length > 0) {
-                    const dayTitle = document.createElement('div');
-                    dayTitle.className = "font-bold mt-2 text-gray-700 border-b";
-                    dayTitle.textContent = days[d];
-                    list.appendChild(dayTitle);
-                    for (const [desk, data] of Object.entries(rules)) {
-                        const row = document.createElement('div');
-                        row.className = "flex justify-between items-center py-1 hover:bg-gray-100 px-2";
-                        row.innerHTML = `<span><b>${desk}</b> : ${data.userName}</span>`;
-                        const delBtn = document.createElement('button');
-                        delBtn.textContent = "Suppr.";
-                        delBtn.className = "text-xs text-red-600 hover:underline ml-2";
-                        delBtn.onclick = async () => {
-                            delete fixedAssignmentsData[d][desk];
-                            await saveConfigToFirestore();
-                            renderAdminRulesList();
-                            if (getDayOfWeekIndex(currentDateString) == d) listenToReservations();
-                        };
-                        row.appendChild(delBtn);
-                        list.appendChild(row);
-                    }
-                }
-            }
-        }
-
-        function renderAdminDisabledList() {
-            const list = document.getElementById('admin-disabled-list');
-            list.innerHTML = '';
-            if(disabledDesksData.length === 0) {
-                list.innerHTML = '<div class="text-gray-400 italic">Aucun bureau désactivé.</div>';
-                return;
-            }
-            disabledDesksData.forEach(deskId => {
-                const row = document.createElement('div');
-                row.className = "flex justify-between items-center py-1 hover:bg-gray-100 px-2";
-                row.innerHTML = `<span><b>${deskId}</b> (Hors Service)</span>`;
-                const delBtn = document.createElement('button');
-                delBtn.textContent = "Réactiver";
-                delBtn.className = "text-xs text-green-600 hover:underline ml-2";
-                delBtn.onclick = async () => {
-                    disabledDesksData = disabledDesksData.filter(id => id !== deskId);
-                    await saveConfigToFirestore();
-                    renderAdminDisabledList();
-                    listenToReservations();
-                };
-                row.appendChild(delBtn);
-                list.appendChild(row);
-            });
-        }
-
-        // --- Firestore Config Logic ---
-        async function saveConfigToFirestore() {
-            if (!db) return;
-            try {
-                await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/main`), {
-                    fixedAssignments: JSON.stringify(fixedAssignmentsData),
-                    disabledDesks: JSON.stringify(disabledDesksData)
-                });
-            } catch (e) { console.error("Error saving config", e); }
-        }
-
-        function loadConfigFromFirestore() {
-            if (!db) return;
-            onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/main`), (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data.fixedAssignments) {
-                        try {
-                            fixedAssignmentsData = JSON.parse(data.fixedAssignments);
-                        } catch (e) { console.error("Error parsing config fixed", e); }
-                    }
-                    if (data.disabledDesks) {
-                        try {
-                            disabledDesksData = JSON.parse(data.disabledDesks);
-                        } catch (e) { console.error("Error parsing config disabled", e); }
-                    }
-                    
-                    // Si première fois et données par défaut (initialisation)
-                    if (Object.keys(fixedAssignmentsData).length === 0 && Object.keys(INITIAL_FIXED).length > 0) {
-                        // Merge initial logic if needed, but here we assume DB overwrites default.
-                        // If DB was empty but existed (rare case), we might want to push default.
-                    }
-
-                    if (isAdminMode) {
-                        renderAdminRulesList();
-                        renderAdminDisabledList();
-                    }
-                    listenToReservations();
-                } else {
-                    // Initial Save
-                    fixedAssignmentsData = INITIAL_FIXED;
-                    saveConfigToFirestore();
-                }
-            });
-        }
-
-        // --- Firestore Users Logic ---
-        async function saveUsersToFirestore() {
-            if (!db) return;
-            try {
-                await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/users`), {
-                    usersData: JSON.stringify(usersData)
-                });
-            } catch (e) { console.error("Error saving users", e); }
-        }
-
-        function loadUsersFromFirestore() {
-            if (!db) return;
-            onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/users`), (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data.usersData) {
-                        try {
-                            usersData = JSON.parse(data.usersData);
-                            initUserSelector(); 
-                            if(isAdminMode) {
-                                renderAdminUsersList();
-                                updateAdminUserSelect();
-                            }
-                        } catch (e) { console.error("Error parsing users", e); }
-                    }
-                } else {
-                    saveUsersToFirestore();
-                }
-            });
-        }
-
-        // --- Fonctions Standard ---
-        // ... (initUserSelector, initDateSelector, checkFridayStats, checkFixedAssignment, updateDayLabel, getDayOfWeekIndex remain mostly same) ...
-
-        function initUserSelector() {
-            const select = document.getElementById('user-select');
-            select.innerHTML = '<option value="" disabled selected>Sélectionner votre prénom...</option>';
-            let allUsers = [];
-            for (const dept in usersData) {
-                usersData[dept].forEach(name => allUsers.push({ name, dept }));
-            }
-            allUsers.sort((a, b) => a.name.localeCompare(b.name));
-            allUsers.forEach(user => {
-                const option = document.createElement('option');
-                option.value = `${user.name}|${user.dept}`; 
-                option.textContent = user.name; 
-                select.appendChild(option);
-            });
-            select.addEventListener('change', (e) => {
+            // Standard Listeners
+            document.getElementById('user-select').addEventListener('change', (e) => {
                 const [name, dept] = e.target.value.split('|');
-                selectedUser.name = name; selectedUser.dept = dept;
-                const deptDisplay = document.getElementById('current-dept-display');
-                deptDisplay.textContent = dept;
-                deptDisplay.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white shadow-sm transition-colors duration-200';
-                const colorClass = DEPT_COLORS[dept] || 'bg-gray-500';
-                deptDisplay.classList.add(colorClass.replace('bg-', 'bg-')); 
-                deptDisplay.classList.add(colorClass); 
-                checkFixedAssignmentForSelectedUser(); 
-                checkFridayStatsForSelectedUser();
-                renderDeskMap();
+                selectedUser = { name, dept, fixedDesk: null };
+                updateUserInfoCard();
+                selectedDeskId = null;
+                recalculateMyStatus();
+                renderMap();
+                updateStickyBar();
             });
-        }
 
-        function initDateSelector() {
             const dateInput = document.getElementById('date-selector');
             const today = new Date().toISOString().split('T')[0];
             dateInput.value = today;
@@ -774,329 +734,451 @@
             dateInput.addEventListener('change', (e) => {
                 currentDateString = e.target.value;
                 updateDayLabel(currentDateString);
-                checkFixedAssignmentForSelectedUser(); 
-                checkFridayStatsForSelectedUser();
-                listenToReservations(); 
+                selectedDeskId = null;
+                recalculateMyStatus();
+                listenReservations();
+                updateStickyBar();
             });
+
+            document.getElementById('cancel-selection-btn').onclick = () => { selectedDeskId = null; updateStickyBar(); renderMap(); };
+            document.getElementById('quick-cancel-btn').onclick = cancelMyReservation;
+            document.getElementById('confirm-reservation-btn').onclick = confirmReservation;
+            document.getElementById('admin-delete-btn').onclick = adminDelete;
+
+            document.getElementById('cancel-password-btn').onclick = () => {
+                document.getElementById('password-modal').classList.add('hidden');
+                toggle.checked = false;
+                dot.style.transform = 'translateX(0)';
+                bg.classList.add('bg-slate-200'); bg.classList.remove('bg-red-600');
+            };
+            document.getElementById('submit-password-btn').onclick = () => {
+                if(document.getElementById('admin-password-input').value === ADMIN_PASSWORD) {
+                    document.getElementById('password-modal').classList.add('hidden');
+                    enableAdminMode();
+                } else {
+                    toast("Mot de passe incorrect", "error");
+                }
+            };
+            initAdminActions();
         }
 
-        function checkFridayStatsForSelectedUser() {
-            if (!selectedUser.name || !db) return;
-            const currentMonth = currentDateString.substring(0, 7); 
-            const statusDisplay = document.getElementById('friday-counter-display');
-            document.getElementById('friday-status-container').classList.remove('hidden');
-            statusDisplay.textContent = "Chargement...";
+        // --- CORE LOGIC ---
+        function updateUserInfoCard() {
+            if(!selectedUser.name) { document.getElementById('user-info-card').classList.add('hidden'); return; }
+            document.getElementById('user-info-card').classList.remove('hidden');
+            
+            const color = DEPT_COLORS[selectedUser.dept] || 'bg-slate-400';
+            document.getElementById('user-dept-badge').textContent = selectedUser.dept;
+            document.getElementById('user-dept-badge').className = `text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wide inline-block text-white ${color}`;
+            
+            const daysContainer = document.getElementById('user-fixed-days');
+            daysContainer.innerHTML = '';
+            const dayNames = t('days'); 
+            let hasFixed = false;
+            
+            const fixedDataContainer = document.createElement('div');
+            fixedDataContainer.className = "flex flex-col gap-1 text-sm";
 
+            for(let i=1; i<=5; i++) {
+                const dayRules = fixedAssignmentsData[i] || {};
+                const desk = Object.keys(dayRules).find(d => dayRules[d].userName === selectedUser.name);
+                if(desk) {
+                    hasFixed = true;
+                    
+                    const row = document.createElement('div');
+                    row.className = "info-grid-row text-xs"; // Using the grid row class
+                    
+                    // Full day name
+                    const dayLabel = document.createElement('span');
+                    dayLabel.className = "font-medium text-slate-700";
+                    dayLabel.textContent = dayNames[i];
+                    
+                    // Desk ID
+                    const deskValue = document.createElement('span');
+                    deskValue.className = "font-bold text-indigo-600 justify-self-end";
+                    deskValue.textContent = desk;
+                    
+                    row.appendChild(dayLabel);
+                    row.appendChild(deskValue);
+                    fixedDataContainer.appendChild(row);
+                }
+            }
+            
+            if(!hasFixed) {
+                fixedDataContainer.innerHTML = `<span class="text-xs italic text-slate-400">${t('none')}</span>`;
+            }
+            
+            daysContainer.appendChild(fixedDataContainer);
+            checkFridayStats();
+        }
+
+        function checkFridayStats() {
+            if(!selectedUser.name) return;
+            const m = currentDateString.substring(0, 7);
             const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("userName", "==", selectedUser.name));
             import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then(({ getDocs }) => {
-                getDocs(q).then((querySnapshot) => {
-                    let fridayCount = 0;
-                    querySnapshot.forEach((doc) => {
-                        const data = doc.data();
-                        if (data.date && data.date.startsWith(currentMonth)) {
-                            const dateObj = new Date(data.date);
-                            if (dateObj.getDay() === 5) fridayCount++;
-                        }
-                    });
-                    statusDisplay.innerHTML = fridayCount >= 1 ? `<span class="text-green-600">✅ ${fridayCount}/1 réservé</span>` : `<span class="text-red-600">⚠️ 0/1 réservé</span>`;
+                getDocs(q).then((snap) => {
+                    let count = 0;
+                    snap.forEach(d => { if(d.data().date.startsWith(m) && new Date(d.data().date).getDay()===5) count++; });
+                    const txt = document.getElementById('user-friday-stats');
+                    if(count >= 1) { txt.textContent = t('validated'); txt.className = "text-sm font-bold text-green-600"; }
+                    else { txt.textContent = "0 / 1"; txt.className = "text-sm font-bold text-red-500"; }
                 });
             });
         }
 
-        function checkFixedAssignmentForSelectedUser() {
+        function recalculateMyStatus() {
+            const day = new Date(currentDateString).getDay();
+            const fixedToday = fixedAssignmentsData[day] || {};
+            const fixedDeskId = Object.keys(fixedToday).find(k => fixedToday[k].userName === selectedUser.name);
+            
+            currentReservation = null;
             selectedUser.fixedDesk = null;
-            const dayIndex = getDayOfWeekIndex(currentDateString);
-            const fixedToday = fixedAssignmentsData[dayIndex] || {};
-            if (!selectedUser.name) return;
-            // Check if user has a fixed desk TODAY, but ONLY if that desk is NOT disabled
-            for (const deskId in fixedToday) {
-                if (fixedToday[deskId].userName === selectedUser.name) {
-                    if (!disabledDesksData.includes(deskId)) {
-                        selectedUser.fixedDesk = deskId;
-                        displayMessage(`${selectedUser.name}, vous avez une place fixe (${deskId}) réservée ce jour.`, 'info');
-                    }
-                    break;
-                }
-            }
-            if(selectedUser.fixedDesk && currentReservation && currentReservation.deskId !== selectedUser.fixedDesk) {
-                 selectedDeskId = null;
-                 document.getElementById('reservation-panel').classList.add('hidden');
-            }
-        }
 
-        function updateDayLabel(dateStr) {
-            const date = new Date(dateStr);
-            const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-            document.getElementById('day-label').textContent = days[date.getDay()];
-        }
-
-        function getDayOfWeekIndex(dateStr) { return new Date(dateStr + 'T00:00:00').getDay(); }
-
-        // --- Rendering ---
-
-        function createDeskElement(deskId, isCluster = false) {
-            const reservation = allReservations[deskId];
-            const isReservedByMe = currentReservation && currentReservation.deskId === deskId;
-            const isSelected = selectedDeskId === deskId;
-            
-            // Check Disabled First
-            const isDisabled = disabledDesksData.includes(deskId);
-
-            const isFixed = !isDisabled && reservation && reservation.isFixed === true;
-            const isReservedByOther = !isDisabled && reservation && reservation.userId !== userId && !isFixed;
-            const isUserBlockedByFixed = !isDisabled && selectedUser.fixedDesk && (selectedUser.fixedDesk === deskId || !isReservedByMe);
-
-            let cursorClass = "cursor-pointer";
-            // En mode admin, on peut cliquer même si désactivé pour réactiver ou gérer
-            if (!isAdminMode && (isDisabled || isReservedByOther || isFixed || isUserBlockedByFixed)) cursorClass = "cursor-not-allowed";
-            
-            let baseClasses = `flex flex-col items-center justify-center p-0.5 rounded-lg transition duration-150 shadow-md text-center flex-shrink-0 border relative h-16 w-14 text-xs ${cursorClass} `;
-            let colors = "";
-            let statusText = "LIBRE";
-            let subText = "";
-            let lockIcon = "";
-            let deptIndicator = "";
-
-            if (isDisabled) {
-                colors = "bg-slate-800 text-gray-400 border-slate-900 opacity-100";
-                statusText = "HS";
-                lockIcon = `<div class="disabled-desk-indicator"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></div>`;
-            } 
-            else {
-                if (isFixed || isReservedByOther || isReservedByMe) {
-                    subText = reservation.userName.split(' ')[0];
-                    const deptColorClass = DEPT_COLORS[reservation.userDepartment] || 'bg-gray-400';
-                    deptIndicator = `<div class="dept-indicator ${deptColorClass}"></div>`;
-                }
-
-                if (isFixed) {
-                    if (reservation.userName === selectedUser.name) {
-                        colors = "bg-blue-600 text-white border-blue-800 opacity-90 ring-2 ring-blue-300";
-                    } else {
-                        colors = "bg-gray-600 text-white border-gray-700 opacity-90";
-                    }
-                    statusText = "FIXE";
-                    lockIcon = `<div class="fixed-desk-indicator"><svg xmlns="http://www.w3.org/2000/svg" class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg></div>`;
-                } else if (isReservedByMe) {
-                    colors = "bg-blue-500 hover:bg-blue-600 text-white border-blue-700 ring-2 ring-blue-300";
-                    statusText = "MOI";
-                } else if (isReservedByOther) {
-                    colors = "bg-red-400 text-white opacity-90 border-red-500 desk-reserved-by-other";
-                    statusText = "PRIS";
-                } else if (isSelected) {
-                    colors = "bg-yellow-400 hover:bg-yellow-500 text-gray-800 border-yellow-700 ring-4 ring-yellow-300 scale-105";
-                    statusText = "SÉLECT.";
-                } else {
-                    colors = "bg-green-100 hover:bg-green-200 text-green-800 border-green-300";
-                }
-            }
-
-            const el = document.createElement('div');
-            el.className = baseClasses + " " + colors;
-            el.innerHTML = `${lockIcon}${deptIndicator}<span class="font-bold text-sm">${deskId}</span><span class="mt-0 leading-none">${statusText}</span>${subText ? `<span class="opacity-90 scale-90 inline-block leading-none mt-0.5 font-medium truncate w-full">${subText}</span>` : ''}`;
-            
-            if (isAdminMode) {
-                 el.addEventListener('click', () => handleDeskClick(deskId));
-            } else if (!isDisabled && !isReservedByOther && !isFixed && !isUserBlockedByFixed) {
-                el.addEventListener('click', () => handleDeskClick(deskId));
-            }
-            return el;
-        }
-
-        // ... (renderIsland, renderTopGroup, renderDeskMap are identical, just call updated createDeskElement) ...
-        function renderIsland(islandData) {
-            const container = document.createElement('div');
-            container.className = `flex flex-col items-center flex-1 w-full p-2 border border-gray-400 bg-white rounded-xl`;
-            container.innerHTML = `<p class="text-xs font-semibold text-gray-700 mb-2">${islandData.title}</p>`;
-            const table = document.createElement('div');
-            table.className = 'w-full grid gap-2';
-            table.style.gridTemplateColumns = '1fr 16px 1fr'; table.style.gridTemplateRows = `repeat(4, 1fr)`;
-            const col1 = islandData.col1.map(id => createDeskElement(id));
-            const col2 = islandData.col2.map(id => createDeskElement(id));
-            for (let i = 0; i < 4; i++) {
-                const d1 = col1[i]; d1.style.gridRow = `${i+1}/span 1`; d1.style.gridColumn = '1/2'; d1.classList.add('justify-self-end'); table.appendChild(d1);
-                const d2 = col2[i]; d2.style.gridRow = `${i+1}/span 1`; d2.style.gridColumn = '3/4'; d2.classList.add('justify-self-start'); table.appendChild(d2);
-            }
-            const surf = document.createElement('div'); surf.className = 'bg-gray-400 rounded h-full w-full border border-gray-500'; surf.style.gridColumn = '2/3'; surf.style.gridRow = '1/-1'; table.appendChild(surf);
-            container.appendChild(table);
-            return container;
-        }
-        function renderTopGroup(group) {
-             const container = document.createElement('div');
-             container.className = 'flex flex-col items-center p-2 border border-gray-300 rounded bg-white shadow-sm';
-             container.innerHTML = `<h3 class="text-xs font-bold text-gray-600 mb-2 w-full text-center border-b pb-1">${group.title}</h3>`;
-            if (group.type === 'vertical-2x2') {
-                const structure = document.createElement('div'); structure.className = 'flex justify-center gap-2'; 
-                const d = group.desks.map(id => createDeskElement(id));
-                const c1 = document.createElement('div'); c1.className='flex flex-col gap-2'; c1.appendChild(d[0]); c1.appendChild(d[1]);
-                const tv = document.createElement('div'); tv.className='w-3 bg-gray-300 rounded mx-0.5 border border-gray-400'; tv.style.height='100%';
-                const c2 = document.createElement('div'); c2.className='flex flex-col gap-2'; c2.appendChild(d[2]); c2.appendChild(d[3]);
-                structure.appendChild(c1); structure.appendChild(tv); structure.appendChild(c2); container.appendChild(structure);
+            if(fixedDeskId && !disabledDesksData.includes(fixedDeskId)) {
+                selectedUser.fixedDesk = fixedDeskId;
+                currentReservation = { deskId: fixedDeskId, userName: selectedUser.name, isFixed: true };
             } else {
-                const d = group.desks.map(id => createDeskElement(id));
-                const top = document.createElement('div'); top.className='flex gap-2 mb-2'; if(d[0]) top.appendChild(d[0]); if(d[1]) top.appendChild(d[1]); container.appendChild(top);
-                const t = document.createElement('div'); t.className='w-2/3 h-3 bg-gray-300 rounded mb-2 border border-gray-400'; container.appendChild(t);
-                const bot = document.createElement('div'); if(d[2]) bot.appendChild(d[2]); container.appendChild(bot);
+                Object.values(allReservations).forEach(res => {
+                    if(res.userName === selectedUser.name) currentReservation = res;
+                });
             }
-            return container;
-        }
-        function renderDeskMap() {
-            const top = document.getElementById('top-row-container'); top.innerHTML = '';
-            const des = document.getElementById('design-islands-container'); des.innerHTML = '';
-            const onl = document.getElementById('online-islands-container'); onl.innerHTML = '';
-            DESK_LAYOUT.TOP_ROW.groups.forEach(g => top.appendChild(renderTopGroup(g)));
-            des.appendChild(renderIsland(DESK_LAYOUT.DESIGN_STUDIO_1)); des.appendChild(renderIsland(DESK_LAYOUT.DESIGN_STUDIO_2));
-            onl.appendChild(renderIsland(DESK_LAYOUT.ONLINE_F)); onl.appendChild(renderIsland(DESK_LAYOUT.ONLINE_G));
+            updateStickyBar();
         }
 
-        function handleDeskClick(deskId) {
-             if (!selectedUser.name) return displayMessage("Veuillez sélectionner votre profil.", 'error');
-            const reservation = allReservations[deskId];
-            const isDisabled = disabledDesksData.includes(deskId);
+        function handleDeskClick(id) {
+            if(!selectedUser.name) { toast(t('select_profile'), "error"); return; }
+            
+            const res = allReservations[id];
+            const isDisabled = disabledDesksData.includes(id);
 
-            if (isAdminMode) {
-                // Admin actions on Disabled Desk
-                if (isDisabled) {
-                    if(confirm(`Réactiver le bureau ${deskId} ?`)) {
-                        disabledDesksData = disabledDesksData.filter(id => id !== deskId);
-                        saveConfigToFirestore().then(() => {
-                             renderAdminDisabledList();
-                             renderDeskMap();
-                             displayMessage(`Bureau ${deskId} réactivé.`, 'success');
-                        });
-                    }
+            if(isAdminMode) {
+                if(isDisabled) {
+                    if(confirm("Réactiver ?")) { disabledDesksData = disabledDesksData.filter(x => x!==id); saveConfig(); }
                     return;
                 }
-
-                selectedDeskId = deskId;
-                const info = reservation ? `Occupé par ${reservation.userName} (${reservation.userDepartment})` : "Libre";
-                document.getElementById('selected-desk-info').innerHTML = `<b>${deskId}</b> : ${info}`;
-                document.getElementById('reservation-panel').classList.remove('hidden');
-                if (reservation) {
-                    document.getElementById('admin-delete-btn').classList.remove('hidden');
-                    document.getElementById('confirm-reservation-btn').classList.add('hidden');
-                } else {
-                    document.getElementById('admin-delete-btn').classList.add('hidden');
-                    document.getElementById('confirm-reservation-btn').classList.remove('hidden');
-                }
-                renderDeskMap(); 
+                selectedDeskId = id;
+                updateStickyBar();
+                renderMap();
                 return;
             }
-            
-            if (isDisabled) return displayMessage(`Le bureau ${deskId} est hors service.`, 'error');
 
-            if(selectedUser.fixedDesk && selectedUser.fixedDesk !== deskId) return displayMessage(`Vous avez déjà une place fixe (${selectedUser.fixedDesk}).`, 'error');
-            if (reservation && reservation.isFixed) {
-                if(reservation.userName === selectedUser.name) return displayMessage(`Votre place fixe.`, 'info');
-                return displayMessage(`Bureau assigné fixe.`, 'info');
-            }
-            if (reservation && reservation.userId !== userId) return displayMessage(`Indisponible.`, 'error');
+            if(isDisabled) { toast(t('desk_disabled'), "error"); return; }
             
-            if (selectedDeskId === deskId) {
-                selectedDeskId = null; document.getElementById('reservation-panel').classList.add('hidden');
+            const isMe = (currentReservation && currentReservation.deskId === id);
+            if(isMe) {
+                if(currentReservation.isFixed) toast(t('is_your_fixed'), "info");
+                else toast(t('is_your_res'), "info");
+                return;
+            }
+
+            if(res) { toast(`${t('occupied_by')} ${res.userName}`, "error"); return; }
+
+            if(selectedUser.fixedDesk) { toast(t('fixed_error'), "error"); return; }
+            if(currentReservation) { toast(t('release_first'), "error"); return; }
+
+            selectedDeskId = (selectedDeskId === id) ? null : id;
+            updateStickyBar();
+            renderMap();
+        }
+
+        function updateStickyBar() {
+            const def = document.getElementById('default-bar-status');
+            const sel = document.getElementById('selection-bar-status');
+            const myTxt = document.getElementById('my-status-text');
+            const b1=document.getElementById('quick-cancel-btn');
+            const b2=document.getElementById('cancel-selection-btn');
+            const b3=document.getElementById('confirm-reservation-btn');
+            const b4=document.getElementById('admin-delete-btn');
+            [b1,b2,b3,b4].forEach(b=>b.classList.add('hidden'));
+
+            if(selectedDeskId) {
+                def.classList.add('hidden'); sel.classList.remove('hidden');
+                document.getElementById('selected-desk-id').textContent = selectedDeskId;
+                const res = allReservations[selectedDeskId];
+                const detail = document.getElementById('selected-desk-detail');
+                
+                if(res) {
+                    detail.textContent = `${t('occupied')} (${res.userName})`;
+                    detail.className = "text-sm font-bold text-red-500";
+                    if(isAdminMode) b4.classList.remove('hidden');
+                } else {
+                    detail.textContent = t('free');
+                    detail.className = "text-sm font-bold text-green-500";
+                    if(!isAdminMode) b3.classList.remove('hidden'); 
+                }
+                b2.classList.remove('hidden');
             } else {
-                selectedDeskId = deskId;
-                document.getElementById('selected-desk-info').textContent = `Bureau : ${deskId}`;
-                document.getElementById('reservation-panel').classList.remove('hidden');
-                document.getElementById('admin-delete-btn').classList.add('hidden');
-                document.getElementById('confirm-reservation-btn').classList.remove('hidden');
+                def.classList.remove('hidden'); sel.classList.add('hidden');
+                if(currentReservation) {
+                    if(currentReservation.isFixed) {
+                        myTxt.innerHTML = `${t('fixed_place')} <span class="text-indigo-600">${currentReservation.deskId}</span>`;
+                    } else {
+                        myTxt.innerHTML = `${t('reserved')} <span class="text-blue-600">${currentReservation.deskId}</span>`;
+                        b1.classList.remove('hidden');
+                    }
+                } else {
+                    myTxt.textContent = t('no_res');
+                }
             }
-            renderDeskMap();
         }
 
-        function displayMessage(msg, type) {
-            const el = document.getElementById('message-area');
-            el.textContent = msg;
-            el.className = `mt-4 p-3 rounded-lg text-sm font-medium ${type === 'error' ? 'bg-red-100 text-red-700' : type === 'success' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`;
-            el.classList.remove('hidden');
-            setTimeout(() => el.classList.add('hidden'), 3000);
-        }
+        // --- MAP RENDERER (WRAPPER FIX) ---
+        function renderMap() {
+            const create = (id) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = "desk-wrapper";
+                wrapper.onclick = () => handleDeskClick(id);
 
-        let unsubscribe = null;
-        function listenToReservations() {
-            if (!db || !userId) return;
-            if (unsubscribe) unsubscribe();
-            const q = collection(db, `/artifacts/${appId}/public/data/desk_reservations`);
-            unsubscribe = onSnapshot(query(q, where("date", "==", currentDateString)), (snap) => {
-                allReservations = {}; currentReservation = null;
-                snap.forEach(d => {
-                    const data = d.data();
-                    allReservations[data.deskId] = { ...data, isFixed: false };
-                    if (data.userId === userId) currentReservation = allReservations[data.deskId];
-                });
-                const dayIndex = getDayOfWeekIndex(currentDateString);
-                const fixed = fixedAssignmentsData[dayIndex] || {};
-                checkFixedAssignmentForSelectedUser();
-                for (const [id, data] of Object.entries(fixed)) {
-                    if (!allReservations[id] || allReservations[id].userName !== data.userName) {
-                        allReservations[id] = { deskId: id, userId: 'FIXED', userName: data.userName, userDepartment: data.userDepartment, isFixed: true };
-                    }
+                const res = allReservations[id];
+                const isDisabled = disabledDesksData.includes(id);
+                const isFixed = !isDisabled && res && res.isFixed;
+                const isMe = currentReservation && currentReservation.deskId === id;
+                const isTaken = !isDisabled && res && !isMe;
+                const isSelected = selectedDeskId === id;
+
+                // Box
+                let classes = "desk-box ";
+                let content = `<span class="text-[14px] font-bold z-10 mb-1">${id}</span>`;
+                let bottomStrip = "";
+                let overlay = "";
+
+                if(isDisabled) {
+                    classes += "bg-slate-800 border-slate-900 text-slate-500 opacity-80 cursor-not-allowed";
+                    overlay = `<div class="floating-badge bg-slate-700 text-white border-slate-600"><span class="material-icons-round text-sm">block</span></div>`;
+                } 
+                else if(isFixed) {
+                    classes += "bg-slate-100 border-2 border-slate-300 text-slate-500 shadow-sm";
+                    const name = res ? res.userName.split(' ')[0] : '';
+                    content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-slate-600 font-bold">${name}</span>`;
+                    overlay = `<div class="floating-badge bg-slate-800 text-white"><span class="material-icons-round text-[12px]">lock</span></div>`;
+                    const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
+                    bottomStrip = `<div class="absolute bottom-0 left-0 right-0 h-1.5 ${color}"></div>`;
+                    if(isMe) classes += " ring-4 ring-blue-300"; 
+                } 
+                else if(isMe) {
+                    classes += "bg-blue-100 border-2 border-blue-300 text-blue-700 shadow-md ring-4 ring-blue-200";
+                    content += `<span class="text-[10px] font-bold text-blue-600 leading-tight">${t('my_res')}</span>`;
+                } 
+                else if(isTaken) {
+                    classes += "bg-red-50 border-2 border-red-200 text-red-400 shadow-sm";
+                    const name = res.userName.split(' ')[0];
+                    content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-red-500">${name}</span>`;
+                    const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
+                    bottomStrip = `<div class="absolute bottom-0 left-0 right-0 h-1.5 ${color}"></div>`;
+                } 
+                else if(isSelected) {
+                    classes += "bg-yellow-300 border-2 border-yellow-500 text-yellow-900 scale-110 shadow-xl z-20 ring-4 ring-yellow-100";
+                } 
+                else {
+                    classes += "bg-white border-2 border-green-200 text-green-700 hover:border-green-400 hover:shadow-md";
                 }
-                // Update status
-                const status = document.getElementById('current-reservation-status');
-                const cancel = document.getElementById('cancel-my-reservation-btn');
-                if (selectedUser.fixedDesk) {
-                    status.textContent = `Place fixe : ${selectedUser.fixedDesk}`; cancel.classList.add('hidden');
-                    selectedDeskId = null; document.getElementById('reservation-panel').classList.add('hidden');
-                } else if (currentReservation) {
-                    status.textContent = `Réservé : ${currentReservation.deskId}`; cancel.classList.remove('hidden');
-                    selectedDeskId = null; document.getElementById('reservation-panel').classList.add('hidden');
-                } else {
-                    status.textContent = "Aucun bureau réservé."; cancel.classList.add('hidden');
-                }
-                renderDeskMap();
+
+                if(isAdminMode) classes = classes.replace('cursor-not-allowed', 'cursor-pointer');
+                
+                const box = document.createElement('div');
+                box.className = classes;
+                box.innerHTML = content + bottomStrip;
+                
+                wrapper.appendChild(box);
+                if(overlay) wrapper.innerHTML += overlay; // Append badge outside box
+                
+                return wrapper;
+            };
+
+            const top = document.getElementById('top-row-container'); top.innerHTML='';
+            const des = document.getElementById('design-islands-container'); des.innerHTML='';
+            const onl = document.getElementById('online-islands-container'); onl.innerHTML='';
+
+            DESK_LAYOUT.TOP_ROW.groups.forEach(g => {
+                 const div = document.createElement('div');
+                 div.className = "flex flex-col items-center p-2 rounded-xl bg-white";
+                 const sub = document.createElement('div');
+                 if(g.type === 'vertical-2x2') {
+                     sub.className = "flex gap-2";
+                     const c1=document.createElement('div'); c1.className="flex flex-col gap-2"; c1.append(create(g.desks[0]), create(g.desks[1]));
+                     const c2=document.createElement('div'); c2.className="flex flex-col gap-2"; c2.append(create(g.desks[2]), create(g.desks[3]));
+                     // Vertical separator
+                     const sep = document.createElement('div'); sep.className="w-2 h-auto bg-slate-400 rounded border border-slate-500 opacity-80";
+                     sub.append(c1, sep, c2);
+                 } else {
+                     sub.className = "flex flex-col items-center gap-1";
+                     const r1=document.createElement('div'); r1.className="flex gap-1"; if(g.desks[0]) r1.append(create(g.desks[0])); if(g.desks[1]) r1.append(create(g.desks[1]));
+                     // Horizontal bar (thicker)
+                     const shape=document.createElement('div'); shape.className="w-16 h-2 bg-slate-400 rounded opacity-80 border border-slate-500 mb-1";
+                     const r2=document.createElement('div'); if(g.desks[2]) r2.append(create(g.desks[2]));
+                     sub.append(r1, shape, r2);
+                 }
+                 div.append(sub); top.append(div);
             });
+            [DESK_LAYOUT.DESIGN_STUDIO_1, DESK_LAYOUT.DESIGN_STUDIO_2].forEach(i => des.appendChild(renderIsland(i, create)));
+            [DESK_LAYOUT.ONLINE_F, DESK_LAYOUT.ONLINE_G].forEach(i => onl.appendChild(renderIsland(i, create)));
         }
 
-        async function initializeAppAndAuth() {
-            if (!Object.keys(firebaseConfig).length) return;
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            initUserSelector(); initDateSelector(); initAdminUI(); loadConfigFromFirestore(); loadUsersFromFirestore();
-
-            try { if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken); else await signInAnonymously(auth); } catch (e) {}
-            onAuthStateChanged(auth, (user) => { if(user) { userId=user.uid; document.getElementById('user-id-display').textContent=userId; listenToReservations(); } });
-
-            document.getElementById('confirm-reservation-btn').addEventListener('click', async () => {
-                if (!selectedUser.name || !selectedDeskId) return;
-                if (selectedUser.fixedDesk === selectedDeskId) return;
-                const docId = `${currentDateString}_${selectedDeskId}`;
-                await setDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${docId}`), {
-                    userId, userName: selectedUser.name, userDepartment: selectedUser.dept, timestamp: Date.now(), date: currentDateString, deskId: selectedDeskId
-                });
-                displayMessage("Réservé !", 'success');
-                checkFridayStatsForSelectedUser();
-            });
+        function renderIsland(data, createFn) {
+            const div = document.createElement('div');
+            div.className = "flex flex-col items-center flex-1 p-2 bg-white rounded-xl";
+            const grid = document.createElement('div');
+            grid.className = "grid gap-y-2 gap-x-4";
+            grid.style.gridTemplateColumns = "1fr 8px 1fr"; 
             
-            document.getElementById('admin-delete-btn').addEventListener('click', async () => {
-                if (!selectedDeskId) return;
-                 const reservation = allReservations[selectedDeskId];
-                if (reservation && reservation.isFixed) {
-                    const day = getDayOfWeekIndex(currentDateString);
-                    if (confirm(`Supprimer la règle fixe pour ${selectedDeskId} ?`)) {
-                        delete fixedAssignmentsData[day][selectedDeskId];
-                        await saveConfigToFirestore();
-                        renderAdminRulesList();
-                        listenToReservations();
-                        displayMessage("Règle fixe supprimée.", 'success');
-                    }
-                } else {
-                    await deleteDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${currentDateString}_${selectedDeskId}`));
-                    displayMessage("Réservation supprimée.", 'success');
+            for(let i=0; i<4; i++) {
+                const d1 = createFn(data.col1[i]); d1.style.justifySelf="end";
+                const d2 = createFn(data.col2[i]); d2.style.justifySelf="start";
+                grid.append(d1);
+                if(i===0) { 
+                    // Central vertical bar (thicker)
+                    const bar = document.createElement('div'); 
+                    bar.className="bg-slate-400 rounded-full w-2 h-full row-span-4 opacity-80 border border-slate-500"; 
+                    bar.style.gridColumn="2"; bar.style.gridRow="1 / span 4";
+                    grid.append(bar);
                 }
-                selectedDeskId = null; document.getElementById('reservation-panel').classList.add('hidden');
-            });
-
-            document.getElementById('cancel-selection-btn').addEventListener('click', () => handleDeskClick(selectedDeskId));
-            document.getElementById('cancel-my-reservation-btn').addEventListener('click', async () => {
-                if(currentReservation && !selectedUser.fixedDesk) {
-                    await deleteDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${currentDateString}_${currentReservation.deskId}`));
-                    checkFridayStatsForSelectedUser();
-                }
-            });
+                grid.append(d2);
+            }
+            div.appendChild(grid);
+            return div;
         }
-        window.onload = initializeAppAndAuth;
+
+        // --- ACTIONS ---
+        async function confirmReservation() {
+            const docId = `${currentDateString}_${selectedDeskId}`;
+            await setDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${docId}`), {
+                userId, userName: selectedUser.name, userDepartment: selectedUser.dept,
+                timestamp: Date.now(), date: currentDateString, deskId: selectedDeskId
+            });
+            toast(t('res_confirmed'), "success");
+            selectedDeskId = null;
+            updateUserInfoCard();
+        }
+        async function cancelMyReservation() {
+            if(currentReservation && !currentReservation.isFixed) {
+                await deleteDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${currentDateString}_${currentReservation.deskId}`));
+                toast(t('place_freed'), "info");
+                updateUserInfoCard();
+            }
+        }
+        async function adminDelete() {
+             const res = allReservations[selectedDeskId];
+             if(res && res.isFixed) {
+                 const day = new Date(currentDateString).getDay();
+                 if(confirm("Supprimer cette règle fixe ?")) {
+                     delete fixedAssignmentsData[day][selectedDeskId];
+                     await saveConfig();
+                 }
+             } else {
+                 await deleteDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${currentDateString}_${selectedDeskId}`));
+             }
+             selectedDeskId = null;
+        }
+
+        // --- ADMIN & DATA ---
+        function enableAdminMode() { isAdminMode = true; document.getElementById('admin-config-panel').classList.remove('hidden'); renderAdminLists(); renderMap(); updateStickyBar(); }
+        function disableAdminMode() { isAdminMode = false; document.getElementById('admin-config-panel').classList.add('hidden'); selectedDeskId = null; renderMap(); updateStickyBar(); }
+
+        function initAdminActions() {
+             const dSel = document.getElementById('admin-desk-select');
+             const ddSel = document.getElementById('admin-disable-desk-select');
+             DESKS_LIST.sort().forEach(d => { dSel.add(new Option(d,d)); ddSel.add(new Option(d,d)); });
+
+             document.getElementById('admin-add-user-btn').onclick = async () => {
+                 const n = document.getElementById('admin-new-user-name').value.trim();
+                 const dp = document.getElementById('admin-new-user-dept').value;
+                 if(n && dp) { if(!usersData[dp]) usersData[dp] = []; if(!usersData[dp].includes(n)) { usersData[dp].push(n); await saveUsers(); renderAdminLists(); toast("Utilisateur ajouté", "success"); } }
+             };
+             document.getElementById('admin-add-rule-btn').onclick = async () => {
+                 const day = document.getElementById('admin-day-select').value;
+                 const desk = document.getElementById('admin-desk-select').value;
+                 const uVal = document.getElementById('admin-rule-user-select').value;
+                 if(!uVal) return;
+                 const [n, dp] = uVal.split('|');
+                 if(day === 'ALL') { for(let i=1; i<=5; i++) { fixedAssignmentsData[i] = fixedAssignmentsData[i]||{}; fixedAssignmentsData[i][desk] = {userName:n, userDepartment:dp}; } }
+                 else { fixedAssignmentsData[day] = fixedAssignmentsData[day]||{}; fixedAssignmentsData[day][desk] = {userName:n, userDepartment:dp}; }
+                 await saveConfig(); renderAdminLists(); toast("Règle ajoutée", "success");
+             };
+             document.getElementById('admin-disable-btn').onclick = async () => {
+                 const d = document.getElementById('admin-disable-desk-select').value;
+                 if(!disabledDesksData.includes(d)) { disabledDesksData.push(d); await saveConfig(); renderAdminLists(); toast("Bureau désactivé", "success"); }
+             };
+             document.getElementById('admin-day-select').onchange = renderAdminLists;
+        }
+        function renderAdminLists() {
+             const uList = document.getElementById('admin-users-list'); uList.innerHTML="";
+             Object.keys(usersData).forEach(dp => usersData[dp].forEach(n => {
+                 const d=document.createElement('div'); d.className="flex justify-between px-2 py-1 bg-white text-[10px] border rounded";
+                 d.innerHTML=`${n} <span class="text-slate-400">${dp}</span> <button class="text-red-500 font-bold">×</button>`;
+                 d.querySelector('button').onclick=async()=>{ if(confirm(t('delete_confirm'))) { usersData[dp]=usersData[dp].filter(x=>x!==n); await saveUsers(); renderAdminLists(); }};
+                 uList.appendChild(d);
+             }));
+             const uSel = document.getElementById('admin-rule-user-select'); uSel.innerHTML="";
+             Object.keys(usersData).forEach(dp => usersData[dp].forEach(n => uSel.add(new Option(`${n}`, `${n}|${dp}`))));
+             // Load deps
+             const dSel = document.getElementById('admin-new-user-dept'); dSel.innerHTML = "";
+             Object.keys(DEPT_COLORS).forEach(k => dSel.add(new Option(k, k)));
+
+             const rList = document.getElementById('admin-rules-list'); rList.innerHTML="";
+             const fDay = document.getElementById('admin-day-select').value;
+             for(let i=1; i<=5; i++) {
+                 if(fDay!=='ALL' && i.toString()!==fDay) continue;
+                 const r = fixedAssignmentsData[i];
+                 if(r) Object.keys(r).forEach(k => {
+                     const d=document.createElement('div'); d.className="flex justify-between px-2 py-1 bg-white text-[10px] border rounded";
+                     d.innerHTML=`<b>${k}</b> ${r[k].userName} (J${i}) <button class="text-red-500 font-bold">×</button>`;
+                     d.querySelector('button').onclick=async()=>{ delete fixedAssignmentsData[i][k]; await saveConfig(); renderAdminLists(); };
+                     rList.appendChild(d);
+                 });
+             }
+             const dList = document.getElementById('admin-disabled-list'); dList.innerHTML="";
+             disabledDesksData.forEach(x => {
+                 const d=document.createElement('div'); d.className="flex justify-between px-2 py-1 bg-red-50 text-[10px] border border-red-100 text-red-800 rounded";
+                 d.innerHTML=`<b>${x}</b> ${t('blocked_status')} <button class="font-bold">×</button>`;
+                 d.querySelector('button').onclick=async()=>{ disabledDesksData=disabledDesksData.filter(y=>y!==x); await saveConfig(); renderAdminLists(); };
+                 dList.appendChild(d);
+             });
+        }
+
+        function toast(msg, type) {
+             const el = document.getElementById('message-area');
+             el.className = `fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full shadow-2xl font-bold text-sm text-center animate-bounce-in transition-all ${type==='error'?'bg-red-500 text-white':'bg-emerald-500 text-white'}`;
+             el.textContent = msg;
+             el.classList.remove('hidden');
+             setTimeout(()=>el.classList.add('hidden'), 3000);
+        }
+        function setupStickyBarVisibility() { document.getElementById('sticky-action-bar').classList.add('visible'); }
+        function updateDayLabel(d) { 
+            const days = t('days');
+            document.getElementById('day-label').textContent = days[new Date(d).getDay()]; 
+        }
+
+        // --- IO ---
+        function listenReservations() {
+             const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("date", "==", currentDateString));
+             onSnapshot(q, (snap) => {
+                 allReservations = {};
+                 snap.forEach(d => allReservations[d.data().deskId] = { ...d.data(), isFixed: false });
+                 const day = new Date(currentDateString).getDay();
+                 const fixed = fixedAssignmentsData[day] || {};
+                 Object.keys(fixed).forEach(k => { if(!allReservations[k]) allReservations[k] = { deskId:k, userName:fixed[k].userName, userDepartment:fixed[k].userDepartment, isFixed:true }; });
+                 
+                 recalculateMyStatus(); renderMap(); updateStickyBar();
+                 if(isAdminMode) renderAdminLists();
+             });
+        }
+        function loadConfig() { onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/main`), (s) => { if(s.exists()) { fixedAssignmentsData = JSON.parse(s.data().fixedAssignments||'{}'); disabledDesksData = JSON.parse(s.data().disabledDesks||'[]'); } else saveConfig(); }); }
+        function loadUsers() { onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/users`), (s) => { if(s.exists()) { usersData = JSON.parse(s.data().usersData||'{}'); initUserSelector(); } else saveUsers(); }); }
+        
+        function initUserSelector() {
+            const sel = document.getElementById('user-select'); 
+            const prev = sel.value;
+            sel.innerHTML=`<option value="" disabled selected>${t('choose_placeholder')}</option>`;
+            const all=[]; Object.keys(usersData).forEach(dp=>usersData[dp].forEach(n=>all.push({n,dp}))); all.sort((a,b)=>a.n.localeCompare(b.n));
+            all.forEach(u=>sel.add(new Option(u.n, `${u.n}|${u.dp}`)));
+            if(prev) { for(let i=0;i<sel.options.length;i++) if(sel.options[i].value===prev) sel.selectedIndex=i; }
+        }
+
+        async function saveConfig() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/main`), { fixedAssignments: JSON.stringify(fixedAssignmentsData), disabledDesks: JSON.stringify(disabledDesksData) }); }
+        async function saveUsers() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/users`), { usersData: JSON.stringify(usersData) }); }
+
+        window.onload = init;
     </script>
 </body>
 </html>
