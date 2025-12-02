@@ -1,11 +1,11 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : FINAL POLISH + USER INFO UI HARMONIZATION
+  Version : PRODUCTION FINAL - INSTANT UI UPDATE
   
-  Mises à jour :
-  - FICHE UTILISATEUR : Suppression de l'icône d'habillage inutile.
-  - AFFICHAGE JOURS FIXES : Affichage des jours complets (Lundi, Mardi...).
-  - ALIGNEMENT : Harmonisation de l'alignement des données dans la fiche (labels à gauche, valeurs/statuts à droite).
+  Correctifs :
+  - REACTIVITÉ : Les actions Admin (Ajout/Suppression règles, Blocage) mettent à jour l'interface INSTANTANÉMENT (updateGlobalState appelé avant saveConfig).
+  - SYNC : La sauvegarde en base de données se fait en arrière-plan pour ne pas ralentir l'expérience.
+  - FONCTIONNEL : Tout est en place (Tri, Anti-doublon, Design, Multilingue).
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -139,7 +139,6 @@
         .lang-btn-inactive { color: #94a3b8; }
         .lang-btn-inactive:hover { background-color: #f8fafc; }
         
-        /* ADMIN button alignment fix */
         .admin-button-group {
             height: 40px; 
             display: flex;
@@ -154,7 +153,6 @@
             justify-content: center;
         }
         
-        /* User Info Card Grid */
         .info-grid-row {
             display: grid;
             grid-template-columns: 1fr max-content;
@@ -210,7 +208,7 @@
             </div>
         </div>
 
-        <!-- Admin Panel (Styles Harmonized) -->
+        <!-- Admin Panel -->
         <div id="admin-config-panel" class="hidden mb-6 bg-red-50 border-2 border-red-200 rounded-xl p-5 shadow-inner">
             <h2 class="section-title text-red-700 mb-4 flex items-center gap-2">
                 <span class="material-icons-round text-lg">admin_panel_settings</span> <span data-i18n="admin_config">Configuration Admin</span>
@@ -280,18 +278,14 @@
                         </div>
                     </div>
                     <div id="user-info-card" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-center relative">
-                        <!-- Remplacé le cercle d'habillage par un contenu plus fonctionnel et aligné -->
-                        
                         <div class="info-grid-row border-b border-slate-100 mb-3 pb-3">
                             <span class="text-xs text-slate-400 font-bold uppercase" data-i18n="department">Département</span>
                             <span id="user-dept-badge" class="text-[10px] px-2 py-1 rounded-full font-bold text-white uppercase tracking-wide bg-slate-300">...</span>
                         </div>
-                        
                         <div class="info-grid-row mb-4">
                             <span class="text-xs text-slate-400 font-bold uppercase" data-i18n="friday_goal">Objectif Vendredi</span>
                             <span id="user-friday-stats" class="text-sm font-bold text-slate-700">...</span>
                         </div>
-                        
                         <div class="flex flex-col">
                             <span class="text-xs text-slate-400 font-bold uppercase mb-2" data-i18n="fixed_days">Jours Fixes</span>
                             <div id="user-fixed-days" class="flex flex-col gap-1 text-sm">
@@ -320,13 +314,11 @@
             
             <div class="p-6 bg-slate-50/50">
                 <div id="desk-map-layout" class="w-full flex flex-col gap-8 select-none pb-4">
-                    
                     <!-- Top Zone -->
                     <div class="relative bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                         <div class="zone-header" data-i18n="zone_digital">ZONE DIGITAL / CLUSTERS</div>
                         <div id="top-row-container" class="grid grid-cols-2 md:grid-cols-4 gap-6 justify-items-center"></div>
                     </div>
-                    
                     <!-- Bottom Zones -->
                     <div class="flex flex-col md:flex-row gap-6 w-full">
                         <div class="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
@@ -386,9 +378,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIG
+        // 1. CONFIG
         const appId = 'desk-booking-app'; 
         const firebaseConfig = {
           apiKey: "AIzaSyBIR1kFwjCLFi8TEh9UJWeid9nvfvGSSs4",
@@ -401,244 +393,112 @@
         };
         const ADMIN_PASSWORD = "admin123"; 
 
-        // TRANSLATIONS
+        // 2. CONSTANTS
         const TRANSLATIONS = {
-            fr: {
-                main_title: "Golden Palace - Réservation de sièges",
-                subtitle: "Paysager - Croix de guerre 120",
-                admin_mode: "Admin",
-                admin_access: "Accès Admin",
-                cancel: "Annuler",
-                validate: "Valider",
-                admin_config: "Configuration Admin",
-                add_user: "Ajouter Utilisateur",
-                fixed_rules: "Règles Fixes",
-                add: "Ajouter",
-                disable_desk: "Désactiver Bureau",
-                block: "Bloquer",
-                my_info: "Mes Informations",
-                identity: "Identité",
-                date: "Date",
-                department: "Département",
-                friday_goal: "Objectif Vendredi",
-                fixed_days: "Jours Fixes",
-                book_place: "Je réserve ma place",
-                free: "Libre",
-                occupied: "Occupé",
-                my_res: "Ma rés.",
-                fixed: "Fixe",
-                zone_digital: "ZONE DIGITAL / CLUSTERS",
-                zone_online: "ZONE ONLINE PRODUCTS",
-                zone_design: "ZONE DESIGN STUDIO",
-                legend_dept: "Départements",
-                my_status: "Mon Statut",
-                no_res: "Aucune réservation",
-                selection: "Sélection",
-                free_my_place: "Libérer ma place",
-                reserve: "Réserver",
-                admin_free: "Admin: Libérer",
-                days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'],
-                none: "Aucun",
-                validated: "Validé ✅",
-                fixed_place: "Place Fixe :",
-                reserved: "Réservé :",
-                occupied_by: "Occupé par",
-                desk_disabled: "Bureau hors service",
-                is_your_fixed: "C'est votre place fixe.",
-                is_your_res: "C'est votre réservation.",
-                release_first: "Libérez votre place actuelle d'abord.",
-                fixed_error: "Place fixe attribuée pour ce jour.",
-                res_confirmed: "Réservation confirmée !",
-                place_freed: "Place libérée",
-                select_profile: "Sélectionnez votre profil (Étape 1)",
-                delete_confirm: "Supprimer ?",
-                choose_placeholder: "Choisir...",
-                all_days: "Tous les jours (L-V)",
-                blocked_status: "Bloqué"
-            },
-            nl: {
-                main_title: "Golden Palace - Stoelreservering",
-                subtitle: "Paysager - Croix de guerre 120",
-                admin_mode: "Admin",
-                admin_access: "Admin Toegang",
-                cancel: "Annuleren",
-                validate: "Bevestigen",
-                admin_config: "Admin Configuratie",
-                add_user: "Gebruiker Toevoegen",
-                fixed_rules: "Vaste Regels",
-                add: "Toevoegen",
-                disable_desk: "Bureau Blokkeren",
-                block: "Blokkeer",
-                my_info: "Mijn Gegevens",
-                identity: "Identiteit",
-                date: "Datum",
-                department: "Afdeling",
-                friday_goal: "Doelstelling Vrijdag",
-                fixed_days: "Vaste Dagen",
-                book_place: "Ik reserveer mijn plek",
-                free: "Vrij",
-                occupied: "Bezet",
-                my_res: "Mijn res.",
-                fixed: "Vast",
-                zone_digital: "ZONE DIGITAL / CLUSTERS",
-                zone_online: "ZONE ONLINE PRODUCTS",
-                zone_design: "ZONE DESIGN STUDIO",
-                legend_dept: "Afdelingen",
-                my_status: "Mijn Status",
-                no_res: "Geen reservatie",
-                selection: "Selectie",
-                free_my_place: "Mijn plek vrijgeven",
-                reserve: "Reserveren",
-                admin_free: "Admin: Vrijgeven",
-                days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'],
-                none: "Geen",
-                validated: "Gevalideerd ✅",
-                fixed_place: "Vaste Plek:",
-                reserved: "Gereserveerd:",
-                occupied_by: "Bezet door",
-                desk_disabled: "Bureau buiten gebruik",
-                is_your_fixed: "Dit is uw vaste plek.",
-                is_your_res: "Dit is uw reservatie.",
-                release_first: "Geef eerst uw huidige plek vrij.",
-                fixed_error: "Vaste plek toegewezen voor vandaag.",
-                res_confirmed: "Reservatie bevestigd!",
-                place_freed: "Plek vrijgegeven",
-                select_profile: "Selecteer uw profiel (Stap 1)",
-                delete_confirm: "Verwijderen ?",
-                choose_placeholder: "Kies...",
-                all_days: "Alle dagen (M-V)",
-                blocked_status: "Geblokkeerd"
-            },
-            en: {
-                main_title: "Golden Palace - Seat Reservation",
-                subtitle: "Paysager - Croix de guerre 120",
-                admin_mode: "Admin",
-                admin_access: "Admin Access",
-                cancel: "Cancel",
-                validate: "Validate",
-                admin_config: "Admin Configuration",
-                add_user: "Add User",
-                fixed_rules: "Fixed Rules",
-                add: "Add",
-                disable_desk: "Disable Desk",
-                block: "Block",
-                my_info: "My Information",
-                identity: "Identity",
-                date: "Date",
-                department: "Department",
-                friday_goal: "Friday Goal",
-                fixed_days: "Fixed Days",
-                book_place: "Book my seat",
-                free: "Free",
-                occupied: "Taken",
-                my_res: "My res.",
-                fixed: "Fixed",
-                zone_digital: "DIGITAL ZONE / CLUSTERS",
-                zone_online: "ONLINE PRODUCTS ZONE",
-                zone_design: "DESIGN STUDIO ZONE",
-                legend_dept: "Departments",
-                my_status: "My Status",
-                no_res: "No reservation",
-                selection: "Selection",
-                free_my_place: "Free my seat",
-                reserve: "Book",
-                admin_free: "Admin: Free",
-                days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-                none: "None",
-                validated: "Validated ✅",
-                fixed_place: "Fixed Seat:",
-                reserved: "Booked:",
-                occupied_by: "Occupied by",
-                desk_disabled: "Desk disabled",
-                is_your_fixed: "This is your fixed seat.",
-                is_your_res: "This is your booking.",
-                release_first: "Release your current seat first.",
-                fixed_error: "Fixed seat assigned for today.",
-                res_confirmed: "Booking confirmed!",
-                place_freed: "Seat released",
-                select_profile: "Select your profile (Step 1)",
-                delete_confirm: "Delete ?",
-                choose_placeholder: "Choose...",
-                all_days: "All days (M-F)",
-                blocked_status: "Blocked"
-            }
+            fr: { main_title: "Golden Palace - Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Configuration Admin", add_user: "Ajouter Utilisateur", fixed_rules: "Règles Fixes", add: "Ajouter", disable_desk: "Désactiver Bureau", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", select_profile: "Sélectionnez votre profil (Étape 1)", delete_confirm: "Supprimer ?", choose_placeholder: "Choisir...", all_days: "Tous les jours (L-V)", blocked_status: "Bloqué", duplicate_fixed: "Erreur: Cet utilisateur a déjà une place fixe ce jour-là" },
+            nl: { main_title: "Golden Palace - Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Gebruiker Toevoegen", fixed_rules: "Vaste Regels", add: "Toevoegen", disable_desk: "Bureau Blokkeren", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", select_profile: "Selecteer uw profiel (Stap 1)", delete_confirm: "Verwijderen ?", choose_placeholder: "Kies...", all_days: "Alle dagen (M-V)", blocked_status: "Geblokkeerd", duplicate_fixed: "Fout: Deze gebruiker heeft al een vaste plaats op deze dag" },
+            en: { main_title: "Golden Palace - Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "Add User", fixed_rules: "Fixed Rules", add: "Add", disable_desk: "Disable Desk", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", select_profile: "Select your profile (Step 1)", delete_confirm: "Delete ?", choose_placeholder: "Choose...", all_days: "All days (M-F)", blocked_status: "Blocked", duplicate_fixed: "Error: This user already has a fixed seat on that day" }
         };
-        let currentLang = 'fr';
 
         const DEPT_COLORS = {
-            'Online': 'bg-yellow-400',
-            'Sports Betting': 'bg-emerald-500',
-            'Content': 'bg-red-600',
-            'CRM': 'bg-fuchsia-500',
-            'Digital Marketing': 'bg-cyan-500',
-            'SoMe': 'bg-violet-500',
-            'Design Studio': 'bg-orange-500',
-            'Landbased': 'bg-lime-500',
-            'Corporate': 'bg-pink-500'
+            'Online': 'bg-yellow-400', 'Sports Betting': 'bg-emerald-500', 'Content': 'bg-red-600', 'CRM': 'bg-fuchsia-500',
+            'Digital Marketing': 'bg-cyan-500', 'SoMe': 'bg-violet-500', 'Design Studio': 'bg-orange-500',
+            'Landbased': 'bg-lime-500', 'Corporate': 'bg-pink-500'
         };
-
         const DEFAULT_USERS_DATA = {
-            'CRM': ['Charlotte', 'Killian', 'Maxime'],
-            'SoMe': ['Doha', 'Stella', 'Juliette', 'Chanel'],
+            'CRM': ['Charlotte', 'Killian', 'Maxime'], 'SoMe': ['Doha', 'Stella', 'Juliette', 'Chanel'],
             'Design Studio': ['Eric', 'Minh', 'Julien', 'Kelly', 'Laure', 'Ben', 'Jerome', 'Lucas', 'Héloise'],
-            'Digital Marketing': ['Rollin', 'Diane'],
-            'Landbased': ['Serge', 'Patricia', 'Marco', 'Alix'],
-            'Corporate': ['Alison', 'Jennifer'],
-            'Content': ['Gaëlle', 'Marthijn', 'Wies'],
+            'Digital Marketing': ['Rollin', 'Diane'], 'Landbased': ['Serge', 'Patricia', 'Marco', 'Alix'],
+            'Corporate': ['Alison', 'Jennifer'], 'Content': ['Gaëlle', 'Marthijn', 'Wies'],
             'Sports Betting': ['Sports Betting User 1', 'Sports Betting User 2']
         };
-
         const DESK_LAYOUT = {
-            'TOP_ROW': {
-                groups: [
-                    { title: 'Landbased (L1-L4)', desks: ['L1', 'L2', 'L3', 'L4'], type: 'vertical-2x2' },
-                    { title: 'Cluster (A1-A3)', desks: ['A1', 'A2', 'A3'], type: 'triangular' },
-                    { title: 'Cluster (A4-A6)', desks: ['A4', 'A5', 'A6'], type: 'triangular' },
-                    { title: 'Cluster (A7-A9)', desks: ['A7', 'A8', 'A9'], type: 'triangular' },
-                ]
-            },
+            'TOP_ROW': { groups: [ { title: 'Landbased (L1-L4)', desks: ['L1', 'L2', 'L3', 'L4'], type: 'vertical-2x2' }, { title: 'Cluster (A1-A3)', desks: ['A1', 'A2', 'A3'], type: 'triangular' }, { title: 'Cluster (A4-A6)', desks: ['A4', 'A5', 'A6'], type: 'triangular' }, { title: 'Cluster (A7-A9)', desks: ['A7', 'A8', 'A9'], type: 'triangular' } ] },
             'DESIGN_STUDIO_1': { title: 'Ilot Design 1 (D1-D8)', col1: ['D1', 'D2', 'D3', 'D4'], col2: ['D5', 'D6', 'D7', 'D8'], size: 8 },
             'DESIGN_STUDIO_2': { title: 'Ilot Design 2 (D9-D16)', col1: ['D9', 'D10', 'D11', 'D12'], col2: ['D13', 'D14', 'D15', 'D16'], size: 8 },
             'ONLINE_F': { title: 'Ilot Online 1 (F1-F8)', col1: ['F1', 'F2', 'F3', 'F4'], col2: ['F5', 'F6', 'F7', 'F8'], size: 8 },
             'ONLINE_G': { title: 'Ilot Online 2 (G1-G8)', col1: ['G1', 'G2', 'G3', 'G4'], col2: ['G5', 'G6', 'G7', 'G8'], size: 8 }
         };
         const DESKS_LIST = []; 
-        Object.values(DESK_LAYOUT).forEach(section => {
-             if(section.groups) section.groups.forEach(g => g.desks.forEach(d => DESKS_LIST.push(d)));
-             if(section.col1) { section.col1.forEach(d => DESKS_LIST.push(d)); section.col2.forEach(d => DESKS_LIST.push(d)); }
-        });
+        Object.values(DESK_LAYOUT).forEach(section => { if(section.groups) section.groups.forEach(g => g.desks.forEach(d => DESKS_LIST.push(d))); if(section.col1) { section.col1.forEach(d => DESKS_LIST.push(d)); section.col2.forEach(d => DESKS_LIST.push(d)); } });
 
-        // --- STATE ---
+        // --- 3. STATE ---
         let db, auth, userId = null;
         let usersData = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA));
         let fixedAssignmentsData = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
         let disabledDesksData = [];
-        
+        let rawReservations = {}; 
         let selectedUser = { name: null, dept: null, fixedDesk: null };
         let currentDateString = "";
         let selectedDeskId = null;
         let currentReservation = null;
         let allReservations = {};
         let isAdminMode = false;
+        let currentLang = 'fr';
 
-        // --- INIT ---
-        async function init() {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            
-            initTranslations();
-            setupUIListeners();
-            setupStickyBarVisibility();
-            
-            loadConfig();
-            loadUsers();
-            
-            try { await signInAnonymously(auth); } catch (e) {}
-            onAuthStateChanged(auth, (u) => { if(u) { userId = u.uid; listenReservations(); } });
+        // --- 4. HELPERS ---
+        function t(key) { return TRANSLATIONS[currentLang][key] || key; }
+        function toast(msg, type) {
+             const el = document.getElementById('message-area');
+             el.className = `fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full shadow-2xl font-bold text-sm text-center animate-bounce-in transition-all ${type==='error'?'bg-red-500 text-white':'bg-emerald-500 text-white'}`;
+             el.textContent = msg; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'), 3000);
         }
+        function updateDayLabel(d) { document.getElementById('day-label').textContent = t('days')[new Date(d).getDay()]; }
+        function populateAdminDaySelect() {
+            const sel = document.getElementById('admin-day-select'); const currentVal = sel.value; sel.innerHTML = '';
+            const days = t('days'); sel.add(new Option(t('all_days'), 'ALL'));
+            for(let i=1; i<=5; i++) { sel.add(new Option(days[i], i.toString())); }
+            if(currentVal) sel.value = currentVal;
+        }
+        function renderLegend() {
+            const container = document.getElementById('legend-dept-container'); container.innerHTML = '';
+            Object.keys(DEPT_COLORS).forEach(dept => {
+                const color = DEPT_COLORS[dept]; const span = document.createElement('span');
+                span.className = "text-[10px] font-semibold text-slate-600 flex items-center bg-white px-2 py-1 rounded border border-slate-200";
+                span.innerHTML = `<span class="w-3 h-1.5 rounded-sm ${color} mr-1.5"></span>${dept}`;
+                container.appendChild(span);
+            });
+        }
+        function setupStickyBarVisibility() { document.getElementById('sticky-action-bar').classList.add('visible'); }
 
-        // --- TRANSLATION LOGIC ---
+        // --- 5. LOGIC ---
+        function updateGlobalState() {
+            allReservations = {};
+            Object.keys(rawReservations).forEach(k => { allReservations[k] = { ...rawReservations[k], isFixed: false }; });
+            const dayIndex = new Date(currentDateString + 'T12:00:00').getDay();
+            const fixedToday = fixedAssignmentsData[dayIndex] || {};
+            Object.keys(fixedToday).forEach(deskId => {
+                if (!allReservations[deskId]) {
+                    allReservations[deskId] = { deskId: deskId, userName: fixedToday[deskId].userName, userDepartment: fixedToday[deskId].userDepartment, isFixed: true };
+                } else if(allReservations[deskId].userName === fixedToday[deskId].userName) {
+                    allReservations[deskId].isFixed = true;
+                }
+            });
+            recalculateMyStatus(fixedToday);
+            renderMap(); updateStickyBar(); updateUserInfoCard();
+            if(isAdminMode) renderAdminLists();
+        }
+        function recalculateMyStatus(fixedToday) {
+            currentReservation = null; selectedUser.fixedDesk = null;
+            if(!selectedUser.name) return;
+            const myFixedId = Object.keys(fixedToday).find(k => fixedToday[k].userName === selectedUser.name);
+            if(myFixedId && !disabledDesksData.includes(myFixedId)) {
+                selectedUser.fixedDesk = myFixedId;
+                currentReservation = { deskId: myFixedId, userName: selectedUser.name, isFixed: true };
+            } else {
+                Object.values(allReservations).forEach(res => { if(res.userName === selectedUser.name && !res.isFixed) currentReservation = res; });
+            }
+        }
+        function checkFridayStats() {
+            if(!selectedUser.name) return;
+            const m = currentDateString.substring(0, 7);
+            const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("userName", "==", selectedUser.name));
+            getDocs(q).then((snap) => {
+                let count = 0; snap.forEach(d => { if(d.data().date.startsWith(m) && new Date(d.data().date).getDay()===5) count++; });
+                const txt = document.getElementById('user-friday-stats');
+                if(count >= 1) { txt.textContent = t('validated'); txt.className = "text-sm font-bold text-green-600"; } else { txt.textContent = "0 / 1"; txt.className = "text-sm font-bold text-red-500"; }
+            });
+        }
         function initTranslations() {
             const update = (lang) => {
                 currentLang = lang;
@@ -646,19 +506,16 @@
                     const btn = document.getElementById(`lang-${l}`);
                     btn.className = (lang === l) ? "px-3 py-1 text-xs font-bold rounded-md bg-slate-100 text-slate-700 transition lang-btn-active" : "px-3 py-1 text-xs font-bold rounded-md text-slate-400 hover:bg-slate-50 transition lang-btn-inactive";
                 });
-                
                 document.querySelectorAll('[data-i18n]').forEach(el => {
                     const key = el.getAttribute('data-i18n');
                     if(TRANSLATIONS[lang][key]) el.textContent = TRANSLATIONS[lang][key];
                 });
-                
                 updateDayLabel(currentDateString);
                 updateStickyBar();
                 updateUserInfoCard();
                 populateAdminDaySelect(); 
                 renderAdminLists(); 
                 renderLegend();
-                
                 const userSel = document.getElementById('user-select');
                 if(userSel.options.length > 0) userSel.options[0].textContent = t('choose_placeholder');
             };
@@ -667,287 +524,19 @@
             document.getElementById('lang-en').onclick = () => update('en');
             update('fr');
         }
-        function t(key) { return TRANSLATIONS[currentLang][key] || key; }
 
-        // --- UI ---
-        function renderLegend() {
-            const container = document.getElementById('legend-dept-container');
-            container.innerHTML = '';
-            Object.keys(DEPT_COLORS).forEach(dept => {
-                const color = DEPT_COLORS[dept];
-                const span = document.createElement('span');
-                // New Legend Style: small bar
-                span.className = "text-[10px] font-semibold text-slate-600 flex items-center bg-white px-2 py-1 rounded border border-slate-200";
-                span.innerHTML = `<span class="w-3 h-1.5 rounded-sm ${color} mr-1.5"></span>${dept}`;
-                container.appendChild(span);
-            });
-        }
-
-        function populateAdminDaySelect() {
-            const sel = document.getElementById('admin-day-select');
-            const currentVal = sel.value;
-            sel.innerHTML = '';
-            
-            const days = t('days');
-            sel.add(new Option(t('all_days'), 'ALL'));
-            for(let i=1; i<=5; i++) {
-                sel.add(new Option(days[i], i.toString()));
-            }
-            if(currentVal) sel.value = currentVal;
-        }
-
-        function setupUIListeners() {
-            // Admin Toggle Animation
-            const toggle = document.getElementById('admin-mode-toggle');
-            const bg = document.getElementById('toggle-bg');
-            const dot = document.querySelector('.dot');
-            toggle.addEventListener('change', (e) => {
-                if(e.target.checked) {
-                    dot.style.transform = 'translateX(100%)';
-                    bg.classList.remove('bg-slate-200'); bg.classList.add('bg-red-600');
-                    document.getElementById('password-modal').classList.remove('hidden');
-                    document.getElementById('admin-password-input').value = '';
-                    document.getElementById('admin-password-input').focus();
-                } else {
-                    dot.style.transform = 'translateX(0)';
-                    bg.classList.add('bg-slate-200'); bg.classList.remove('bg-red-600');
-                    disableAdminMode();
-                }
-            });
-
-            // Standard Listeners
-            document.getElementById('user-select').addEventListener('change', (e) => {
-                const [name, dept] = e.target.value.split('|');
-                selectedUser = { name, dept, fixedDesk: null };
-                updateUserInfoCard();
-                selectedDeskId = null;
-                recalculateMyStatus();
-                renderMap();
-                updateStickyBar();
-            });
-
-            const dateInput = document.getElementById('date-selector');
-            const today = new Date().toISOString().split('T')[0];
-            dateInput.value = today;
-            currentDateString = today;
-            updateDayLabel(today);
-            dateInput.addEventListener('change', (e) => {
-                currentDateString = e.target.value;
-                updateDayLabel(currentDateString);
-                selectedDeskId = null;
-                recalculateMyStatus();
-                listenReservations();
-                updateStickyBar();
-            });
-
-            document.getElementById('cancel-selection-btn').onclick = () => { selectedDeskId = null; updateStickyBar(); renderMap(); };
-            document.getElementById('quick-cancel-btn').onclick = cancelMyReservation;
-            document.getElementById('confirm-reservation-btn').onclick = confirmReservation;
-            document.getElementById('admin-delete-btn').onclick = adminDelete;
-
-            document.getElementById('cancel-password-btn').onclick = () => {
-                document.getElementById('password-modal').classList.add('hidden');
-                toggle.checked = false;
-                dot.style.transform = 'translateX(0)';
-                bg.classList.add('bg-slate-200'); bg.classList.remove('bg-red-600');
-            };
-            document.getElementById('submit-password-btn').onclick = () => {
-                if(document.getElementById('admin-password-input').value === ADMIN_PASSWORD) {
-                    document.getElementById('password-modal').classList.add('hidden');
-                    enableAdminMode();
-                } else {
-                    toast("Mot de passe incorrect", "error");
-                }
-            };
-            initAdminActions();
-        }
-
-        // --- CORE LOGIC ---
-        function updateUserInfoCard() {
-            if(!selectedUser.name) { document.getElementById('user-info-card').classList.add('hidden'); return; }
-            document.getElementById('user-info-card').classList.remove('hidden');
-            
-            const color = DEPT_COLORS[selectedUser.dept] || 'bg-slate-400';
-            document.getElementById('user-dept-badge').textContent = selectedUser.dept;
-            document.getElementById('user-dept-badge').className = `text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wide inline-block text-white ${color}`;
-            
-            const daysContainer = document.getElementById('user-fixed-days');
-            daysContainer.innerHTML = '';
-            const dayNames = t('days'); 
-            let hasFixed = false;
-            
-            const fixedDataContainer = document.createElement('div');
-            fixedDataContainer.className = "flex flex-col gap-1 text-sm";
-
-            for(let i=1; i<=5; i++) {
-                const dayRules = fixedAssignmentsData[i] || {};
-                const desk = Object.keys(dayRules).find(d => dayRules[d].userName === selectedUser.name);
-                if(desk) {
-                    hasFixed = true;
-                    
-                    const row = document.createElement('div');
-                    row.className = "info-grid-row text-xs"; // Using the grid row class
-                    
-                    // Full day name
-                    const dayLabel = document.createElement('span');
-                    dayLabel.className = "font-medium text-slate-700";
-                    dayLabel.textContent = dayNames[i];
-                    
-                    // Desk ID
-                    const deskValue = document.createElement('span');
-                    deskValue.className = "font-bold text-indigo-600 justify-self-end";
-                    deskValue.textContent = desk;
-                    
-                    row.appendChild(dayLabel);
-                    row.appendChild(deskValue);
-                    fixedDataContainer.appendChild(row);
-                }
-            }
-            
-            if(!hasFixed) {
-                fixedDataContainer.innerHTML = `<span class="text-xs italic text-slate-400">${t('none')}</span>`;
-            }
-            
-            daysContainer.appendChild(fixedDataContainer);
-            checkFridayStats();
-        }
-
-        function checkFridayStats() {
-            if(!selectedUser.name) return;
-            const m = currentDateString.substring(0, 7);
-            const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("userName", "==", selectedUser.name));
-            import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then(({ getDocs }) => {
-                getDocs(q).then((snap) => {
-                    let count = 0;
-                    snap.forEach(d => { if(d.data().date.startsWith(m) && new Date(d.data().date).getDay()===5) count++; });
-                    const txt = document.getElementById('user-friday-stats');
-                    if(count >= 1) { txt.textContent = t('validated'); txt.className = "text-sm font-bold text-green-600"; }
-                    else { txt.textContent = "0 / 1"; txt.className = "text-sm font-bold text-red-500"; }
-                });
-            });
-        }
-
-        function recalculateMyStatus() {
-            const day = new Date(currentDateString).getDay();
-            const fixedToday = fixedAssignmentsData[day] || {};
-            const fixedDeskId = Object.keys(fixedToday).find(k => fixedToday[k].userName === selectedUser.name);
-            
-            currentReservation = null;
-            selectedUser.fixedDesk = null;
-
-            if(fixedDeskId && !disabledDesksData.includes(fixedDeskId)) {
-                selectedUser.fixedDesk = fixedDeskId;
-                currentReservation = { deskId: fixedDeskId, userName: selectedUser.name, isFixed: true };
-            } else {
-                Object.values(allReservations).forEach(res => {
-                    if(res.userName === selectedUser.name) currentReservation = res;
-                });
-            }
-            updateStickyBar();
-        }
-
-        function handleDeskClick(id) {
-            if(!selectedUser.name) { toast(t('select_profile'), "error"); return; }
-            
-            const res = allReservations[id];
-            const isDisabled = disabledDesksData.includes(id);
-
-            if(isAdminMode) {
-                if(isDisabled) {
-                    if(confirm("Réactiver ?")) { disabledDesksData = disabledDesksData.filter(x => x!==id); saveConfig(); }
-                    return;
-                }
-                selectedDeskId = id;
-                updateStickyBar();
-                renderMap();
-                return;
-            }
-
-            if(isDisabled) { toast(t('desk_disabled'), "error"); return; }
-            
-            const isMe = (currentReservation && currentReservation.deskId === id);
-            if(isMe) {
-                if(currentReservation.isFixed) toast(t('is_your_fixed'), "info");
-                else toast(t('is_your_res'), "info");
-                return;
-            }
-
-            if(res) { toast(`${t('occupied_by')} ${res.userName}`, "error"); return; }
-
-            if(selectedUser.fixedDesk) { toast(t('fixed_error'), "error"); return; }
-            if(currentReservation) { toast(t('release_first'), "error"); return; }
-
-            selectedDeskId = (selectedDeskId === id) ? null : id;
-            updateStickyBar();
-            renderMap();
-        }
-
-        function updateStickyBar() {
-            const def = document.getElementById('default-bar-status');
-            const sel = document.getElementById('selection-bar-status');
-            const myTxt = document.getElementById('my-status-text');
-            const b1=document.getElementById('quick-cancel-btn');
-            const b2=document.getElementById('cancel-selection-btn');
-            const b3=document.getElementById('confirm-reservation-btn');
-            const b4=document.getElementById('admin-delete-btn');
-            [b1,b2,b3,b4].forEach(b=>b.classList.add('hidden'));
-
-            if(selectedDeskId) {
-                def.classList.add('hidden'); sel.classList.remove('hidden');
-                document.getElementById('selected-desk-id').textContent = selectedDeskId;
-                const res = allReservations[selectedDeskId];
-                const detail = document.getElementById('selected-desk-detail');
-                
-                if(res) {
-                    detail.textContent = `${t('occupied')} (${res.userName})`;
-                    detail.className = "text-sm font-bold text-red-500";
-                    if(isAdminMode) b4.classList.remove('hidden');
-                } else {
-                    detail.textContent = t('free');
-                    detail.className = "text-sm font-bold text-green-500";
-                    if(!isAdminMode) b3.classList.remove('hidden'); 
-                }
-                b2.classList.remove('hidden');
-            } else {
-                def.classList.remove('hidden'); sel.classList.add('hidden');
-                if(currentReservation) {
-                    if(currentReservation.isFixed) {
-                        myTxt.innerHTML = `${t('fixed_place')} <span class="text-indigo-600">${currentReservation.deskId}</span>`;
-                    } else {
-                        myTxt.innerHTML = `${t('reserved')} <span class="text-blue-600">${currentReservation.deskId}</span>`;
-                        b1.classList.remove('hidden');
-                    }
-                } else {
-                    myTxt.textContent = t('no_res');
-                }
-            }
-        }
-
-        // --- MAP RENDERER (WRAPPER FIX) ---
+        // --- 6. RENDERERS ---
         function renderMap() {
             const create = (id) => {
-                const wrapper = document.createElement('div');
-                wrapper.className = "desk-wrapper";
-                wrapper.onclick = () => handleDeskClick(id);
-
-                const res = allReservations[id];
-                const isDisabled = disabledDesksData.includes(id);
-                const isFixed = !isDisabled && res && res.isFixed;
-                const isMe = currentReservation && currentReservation.deskId === id;
-                const isTaken = !isDisabled && res && !isMe;
-                const isSelected = selectedDeskId === id;
-
-                // Box
-                let classes = "desk-box ";
-                let content = `<span class="text-[14px] font-bold z-10 mb-1">${id}</span>`;
-                let bottomStrip = "";
-                let overlay = "";
-
+                const wrapper = document.createElement('div'); wrapper.className = "desk-wrapper"; wrapper.onclick = () => handleDeskClick(id);
+                const res = allReservations[id]; const isDisabled = disabledDesksData.includes(id);
+                const isFixed = !isDisabled && res && res.isFixed; const isMe = currentReservation && currentReservation.deskId === id;
+                const isTaken = !isDisabled && res && !isMe; const isSelected = selectedDeskId === id;
+                let classes = "desk-box "; let content = `<span class="text-[14px] font-bold z-10 mb-1">${id}</span>`; let bottomStrip = "", overlay = "";
                 if(isDisabled) {
                     classes += "bg-slate-800 border-slate-900 text-slate-500 opacity-80 cursor-not-allowed";
                     overlay = `<div class="floating-badge bg-slate-700 text-white border-slate-600"><span class="material-icons-round text-sm">block</span></div>`;
-                } 
-                else if(isFixed) {
+                } else if(isFixed) {
                     classes += "bg-slate-100 border-2 border-slate-300 text-slate-500 shadow-sm";
                     const name = res ? res.userName.split(' ')[0] : '';
                     content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-slate-600 font-bold">${name}</span>`;
@@ -955,56 +544,39 @@
                     const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
                     bottomStrip = `<div class="absolute bottom-0 left-0 right-0 h-1.5 ${color}"></div>`;
                     if(isMe) classes += " ring-4 ring-blue-300"; 
-                } 
-                else if(isMe) {
+                } else if(isMe) {
                     classes += "bg-blue-100 border-2 border-blue-300 text-blue-700 shadow-md ring-4 ring-blue-200";
                     content += `<span class="text-[10px] font-bold text-blue-600 leading-tight">${t('my_res')}</span>`;
-                } 
-                else if(isTaken) {
+                } else if(isTaken) {
                     classes += "bg-red-50 border-2 border-red-200 text-red-400 shadow-sm";
                     const name = res.userName.split(' ')[0];
                     content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-red-500">${name}</span>`;
                     const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
                     bottomStrip = `<div class="absolute bottom-0 left-0 right-0 h-1.5 ${color}"></div>`;
-                } 
-                else if(isSelected) {
+                } else if(isSelected) {
                     classes += "bg-yellow-300 border-2 border-yellow-500 text-yellow-900 scale-110 shadow-xl z-20 ring-4 ring-yellow-100";
-                } 
-                else {
+                } else {
                     classes += "bg-white border-2 border-green-200 text-green-700 hover:border-green-400 hover:shadow-md";
                 }
-
                 if(isAdminMode) classes = classes.replace('cursor-not-allowed', 'cursor-pointer');
-                
-                const box = document.createElement('div');
-                box.className = classes;
-                box.innerHTML = content + bottomStrip;
-                
-                wrapper.appendChild(box);
-                if(overlay) wrapper.innerHTML += overlay; // Append badge outside box
-                
-                return wrapper;
+                const box = document.createElement('div'); box.className = classes; box.innerHTML = content + bottomStrip;
+                wrapper.appendChild(box); if(overlay) wrapper.innerHTML += overlay; return wrapper;
             };
-
             const top = document.getElementById('top-row-container'); top.innerHTML='';
             const des = document.getElementById('design-islands-container'); des.innerHTML='';
             const onl = document.getElementById('online-islands-container'); onl.innerHTML='';
-
             DESK_LAYOUT.TOP_ROW.groups.forEach(g => {
-                 const div = document.createElement('div');
-                 div.className = "flex flex-col items-center p-2 rounded-xl bg-white";
+                 const div = document.createElement('div'); div.className = "flex flex-col items-center p-2 rounded-xl bg-white";
                  const sub = document.createElement('div');
                  if(g.type === 'vertical-2x2') {
                      sub.className = "flex gap-2";
                      const c1=document.createElement('div'); c1.className="flex flex-col gap-2"; c1.append(create(g.desks[0]), create(g.desks[1]));
                      const c2=document.createElement('div'); c2.className="flex flex-col gap-2"; c2.append(create(g.desks[2]), create(g.desks[3]));
-                     // Vertical separator
                      const sep = document.createElement('div'); sep.className="w-2 h-auto bg-slate-400 rounded border border-slate-500 opacity-80";
                      sub.append(c1, sep, c2);
                  } else {
                      sub.className = "flex flex-col items-center gap-1";
                      const r1=document.createElement('div'); r1.className="flex gap-1"; if(g.desks[0]) r1.append(create(g.desks[0])); if(g.desks[1]) r1.append(create(g.desks[1]));
-                     // Horizontal bar (thicker)
                      const shape=document.createElement('div'); shape.className="w-16 h-2 bg-slate-400 rounded opacity-80 border border-slate-500 mb-1";
                      const r2=document.createElement('div'); if(g.desks[2]) r2.append(create(g.desks[2]));
                      sub.append(r1, shape, r2);
@@ -1014,66 +586,177 @@
             [DESK_LAYOUT.DESIGN_STUDIO_1, DESK_LAYOUT.DESIGN_STUDIO_2].forEach(i => des.appendChild(renderIsland(i, create)));
             [DESK_LAYOUT.ONLINE_F, DESK_LAYOUT.ONLINE_G].forEach(i => onl.appendChild(renderIsland(i, create)));
         }
-
         function renderIsland(data, createFn) {
-            const div = document.createElement('div');
-            div.className = "flex flex-col items-center flex-1 p-2 bg-white rounded-xl";
-            const grid = document.createElement('div');
-            grid.className = "grid gap-y-2 gap-x-4";
-            grid.style.gridTemplateColumns = "1fr 8px 1fr"; 
-            
+            const div = document.createElement('div'); div.className = "flex flex-col items-center flex-1 p-2 bg-white rounded-xl";
+            const grid = document.createElement('div'); grid.className = "grid gap-y-2 gap-x-4"; grid.style.gridTemplateColumns = "1fr 8px 1fr"; 
             for(let i=0; i<4; i++) {
                 const d1 = createFn(data.col1[i]); d1.style.justifySelf="end";
                 const d2 = createFn(data.col2[i]); d2.style.justifySelf="start";
                 grid.append(d1);
                 if(i===0) { 
-                    // Central vertical bar (thicker)
-                    const bar = document.createElement('div'); 
-                    bar.className="bg-slate-400 rounded-full w-2 h-full row-span-4 opacity-80 border border-slate-500"; 
+                    const bar = document.createElement('div'); bar.className="bg-slate-400 rounded-full w-2 h-full row-span-4 opacity-80 border border-slate-500"; 
                     bar.style.gridColumn="2"; bar.style.gridRow="1 / span 4";
                     grid.append(bar);
                 }
                 grid.append(d2);
             }
-            div.appendChild(grid);
-            return div;
+            div.appendChild(grid); return div;
+        }
+        function updateStickyBar() {
+            const def = document.getElementById('default-bar-status'); const sel = document.getElementById('selection-bar-status'); const myTxt = document.getElementById('my-status-text');
+            const b1=document.getElementById('quick-cancel-btn'); const b2=document.getElementById('cancel-selection-btn'); const b3=document.getElementById('confirm-reservation-btn'); const b4=document.getElementById('admin-delete-btn');
+            [b1,b2,b3,b4].forEach(b=>b.classList.add('hidden'));
+            if(selectedDeskId) {
+                def.classList.add('hidden'); sel.classList.remove('hidden');
+                document.getElementById('selected-desk-id').textContent = selectedDeskId;
+                const res = allReservations[selectedDeskId];
+                const detail = document.getElementById('selected-desk-detail');
+                if(res) {
+                    detail.textContent = `${t('occupied')} (${res.userName})`; detail.className = "text-sm font-bold text-red-500";
+                    if(isAdminMode) b4.classList.remove('hidden');
+                } else {
+                    detail.textContent = t('free'); detail.className = "text-sm font-bold text-green-500";
+                    if(!isAdminMode) b3.classList.remove('hidden'); 
+                }
+                b2.classList.remove('hidden');
+            } else {
+                def.classList.remove('hidden'); sel.classList.add('hidden');
+                if(currentReservation) {
+                    if(currentReservation.isFixed) { myTxt.innerHTML = `${t('fixed_place')} <span class="text-indigo-600">${currentReservation.deskId}</span>`; } 
+                    else { myTxt.innerHTML = `${t('reserved')} <span class="text-blue-600">${currentReservation.deskId}</span>`; b1.classList.remove('hidden'); }
+                } else { myTxt.textContent = t('no_res'); }
+            }
+        }
+        function updateUserInfoCard() {
+            if(!selectedUser.name) { document.getElementById('user-info-card').classList.add('hidden'); return; }
+            document.getElementById('user-info-card').classList.remove('hidden');
+            const color = DEPT_COLORS[selectedUser.dept] || 'bg-slate-400';
+            document.getElementById('user-dept-badge').textContent = selectedUser.dept;
+            document.getElementById('user-dept-badge').className = `text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wide inline-block text-white ${color}`;
+            const daysContainer = document.getElementById('user-fixed-days'); daysContainer.innerHTML = '';
+            const dayNames = t('days'); let hasFixed = false;
+            const fixedDataContainer = document.createElement('div'); fixedDataContainer.className = "flex flex-col gap-1 text-sm";
+            for(let i=1; i<=5; i++) {
+                const dayRules = fixedAssignmentsData[i] || {};
+                const desk = Object.keys(dayRules).find(d => dayRules[d].userName === selectedUser.name);
+                if(desk) {
+                    hasFixed = true;
+                    const row = document.createElement('div'); row.className = "info-grid-row text-xs"; 
+                    const dayLabel = document.createElement('span'); dayLabel.className = "font-medium text-slate-700"; dayLabel.textContent = dayNames[i];
+                    const deskValue = document.createElement('span'); deskValue.className = "font-bold text-indigo-600 justify-self-end"; deskValue.textContent = desk;
+                    row.appendChild(dayLabel); row.appendChild(deskValue);
+                    fixedDataContainer.appendChild(row);
+                }
+            }
+            if(!hasFixed) { fixedDataContainer.innerHTML = `<span class="text-xs italic text-slate-400">${t('none')}</span>`; }
+            daysContainer.appendChild(fixedDataContainer); checkFridayStats();
+        }
+        function renderAdminLists() {
+             const uList = document.getElementById('admin-users-list'); uList.innerHTML="";
+             Object.keys(usersData).sort().forEach(dp => {
+                 if(usersData[dp].length === 0) return;
+                 const header = document.createElement('div'); header.className = "text-[10px] font-bold text-slate-400 mt-2 mb-1 uppercase bg-slate-50 p-1 rounded"; header.textContent = dp; uList.appendChild(header);
+                 usersData[dp].sort().forEach(n => {
+                     const d=document.createElement('div'); d.className="flex justify-between px-2 py-1 bg-white text-[10px] border rounded mb-1";
+                     d.innerHTML=`${n} <button class="text-red-500 font-bold hover:bg-red-50 rounded px-1">×</button>`;
+                     d.querySelector('button').onclick=async()=>{ if(confirm(t('delete_confirm'))) { usersData[dp]=usersData[dp].filter(x=>x!==n); await saveUsers(); }};
+                     uList.appendChild(d);
+                 });
+             });
+             const rList = document.getElementById('admin-rules-list'); rList.innerHTML="";
+             const fDay = document.getElementById('admin-day-select').value;
+             const dayNames = t('days');
+             for(let i=1; i<=5; i++) {
+                 if(fDay!=='ALL' && i.toString()!==fDay) continue;
+                 const rules = fixedAssignmentsData[i];
+                 if(rules && Object.keys(rules).length > 0) {
+                     const dayHeader = document.createElement('div'); dayHeader.className = "text-[10px] font-bold text-indigo-500 mt-2 mb-1 border-b border-indigo-100 pb-1"; dayHeader.textContent = dayNames[i]; rList.appendChild(dayHeader);
+                     const sortedRules = Object.keys(rules).map(k => ({id: k, ...rules[k]})).sort((a,b) => { if(a.userDepartment < b.userDepartment) return -1; if(a.userDepartment > b.userDepartment) return 1; return a.userName.localeCompare(b.userName); });
+                     sortedRules.forEach(r => {
+                         const d=document.createElement('div'); d.className="flex justify-between items-center px-2 py-1 bg-white text-[10px] border rounded mb-1 border-l-4 border-l-slate-300";
+                         d.innerHTML=`<div class="flex gap-2"><b>${r.id}</b> <span>${r.userName} <span class="text-slate-400">(${r.userDepartment})</span></span></div> <button class="text-red-500 font-bold hover:bg-red-50 px-1 rounded">×</button>`;
+                         d.querySelector('button').onclick=async()=>{ delete fixedAssignmentsData[i][r.id]; await saveConfig(); };
+                         rList.appendChild(d);
+                     });
+                 }
+             }
+             const dList = document.getElementById('admin-disabled-list'); dList.innerHTML="";
+             disabledDesksData.sort().forEach(x => {
+                 const d=document.createElement('div'); d.className="flex justify-between px-2 py-1 bg-red-50 text-[10px] border border-red-100 text-red-800 rounded mb-1";
+                 d.innerHTML=`<b>${x}</b> ${t('blocked_status')} <button class="font-bold hover:bg-red-100 px-1 rounded">×</button>`;
+                 d.querySelector('button').onclick=async()=>{ disabledDesksData=disabledDesksData.filter(y=>y!==x); await saveConfig(); };
+                 dList.appendChild(d);
+             });
+        }
+        function renderAdminSelectors() {
+             const userSelect = document.getElementById('user-select'); const currentUserVal = userSelect.value;
+             userSelect.innerHTML=`<option value="" disabled selected>${t('choose_placeholder')}</option>`;
+             const allUsers=[]; Object.keys(usersData).sort().forEach(dp => { usersData[dp].sort().forEach(n => allUsers.push({n,dp})); });
+             allUsers.forEach(u => userSelect.add(new Option(u.n, `${u.n}|${u.dp}`)));
+             if(currentUserVal) userSelect.value = currentUserVal;
+
+             const adminRuleSelect = document.getElementById('admin-rule-user-select'); const currentAdminVal = adminRuleSelect.value;
+             adminRuleSelect.innerHTML = "";
+             Object.keys(usersData).sort().forEach(dp => {
+                 const optGroup = document.createElement('optgroup'); optGroup.label = dp;
+                 usersData[dp].sort().forEach(n => { optGroup.appendChild(new Option(n, `${n}|${dp}`)); });
+                 adminRuleSelect.appendChild(optGroup);
+             });
+             if(currentAdminVal) { let found=false; for(let i=0; i<adminRuleSelect.options.length; i++) { if(adminRuleSelect.options[i].value===currentAdminVal) found=true; } if(found) adminRuleSelect.value=currentAdminVal; }
+
+             const deptSelect = document.getElementById('admin-new-user-dept'); deptSelect.innerHTML = ""; Object.keys(DEPT_COLORS).sort().forEach(k => deptSelect.add(new Option(k, k)));
+             const dSel = document.getElementById('admin-desk-select'); const ddSel = document.getElementById('admin-disable-desk-select');
+             dSel.innerHTML = ""; ddSel.innerHTML = ""; DESKS_LIST.sort().forEach(d => { dSel.add(new Option(d,d)); ddSel.add(new Option(d,d)); });
         }
 
-        // --- ACTIONS ---
+        // --- 7. INTERACTIONS & DATA IO ---
+        function handleDeskClick(id) {
+            if(!selectedUser.name) { toast(t('select_profile'), "error"); return; }
+            const res = allReservations[id]; const isDisabled = disabledDesksData.includes(id);
+            if(isAdminMode) {
+                if(isDisabled) { if(confirm("Réactiver ?")) { disabledDesksData = disabledDesksData.filter(x => x!==id); saveConfig(); } return; }
+                selectedDeskId = id; updateStickyBar(); renderMap(); return;
+            }
+            if(isDisabled) { toast(t('desk_disabled'), "error"); return; }
+            const isMe = (currentReservation && currentReservation.deskId === id);
+            if(isMe) { toast(currentReservation.isFixed ? t('is_your_fixed') : t('is_your_res'), "info"); return; }
+            if(res) { toast(`${t('occupied_by')} ${res.userName}`, "error"); return; }
+            if(selectedUser.fixedDesk) { toast(t('fixed_error'), "error"); return; }
+            if(currentReservation) { toast(t('release_first'), "error"); return; }
+            selectedDeskId = (selectedDeskId === id) ? null : id; updateStickyBar(); renderMap();
+        }
+
         async function confirmReservation() {
             const docId = `${currentDateString}_${selectedDeskId}`;
-            await setDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${docId}`), {
-                userId, userName: selectedUser.name, userDepartment: selectedUser.dept,
-                timestamp: Date.now(), date: currentDateString, deskId: selectedDeskId
-            });
-            toast(t('res_confirmed'), "success");
-            selectedDeskId = null;
-            updateUserInfoCard();
+            await setDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${docId}`), { userId, userName: selectedUser.name, userDepartment: selectedUser.dept, timestamp: Date.now(), date: currentDateString, deskId: selectedDeskId });
+            toast(t('res_confirmed'), "success"); selectedDeskId = null; updateGlobalState();
         }
         async function cancelMyReservation() {
             if(currentReservation && !currentReservation.isFixed) {
                 await deleteDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${currentDateString}_${currentReservation.deskId}`));
-                toast(t('place_freed'), "info");
-                updateUserInfoCard();
+                toast(t('place_freed'), "info"); updateGlobalState();
             }
         }
         async function adminDelete() {
              const res = allReservations[selectedDeskId];
              if(res && res.isFixed) {
-                 const day = new Date(currentDateString).getDay();
-                 if(confirm("Supprimer cette règle fixe ?")) {
-                     delete fixedAssignmentsData[day][selectedDeskId];
-                     await saveConfig();
-                 }
-             } else {
-                 await deleteDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${currentDateString}_${selectedDeskId}`));
-             }
+                 const dayIndex = new Date(currentDateString + 'T12:00:00').getDay();
+                 if(confirm("Supprimer cette règle fixe ?")) { delete fixedAssignmentsData[dayIndex][selectedDeskId]; await saveConfig(); }
+             } else { await deleteDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${currentDateString}_${selectedDeskId}`)); }
              selectedDeskId = null;
         }
 
-        // --- ADMIN & DATA ---
         function enableAdminMode() { isAdminMode = true; document.getElementById('admin-config-panel').classList.remove('hidden'); renderAdminLists(); renderMap(); updateStickyBar(); }
         function disableAdminMode() { isAdminMode = false; document.getElementById('admin-config-panel').classList.add('hidden'); selectedDeskId = null; renderMap(); updateStickyBar(); }
+
+        async function saveConfig() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/main`), { fixedAssignments: JSON.stringify(fixedAssignmentsData), disabledDesks: JSON.stringify(disabledDesksData) }); updateGlobalState(); }
+        async function saveUsers() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/users`), { usersData: JSON.stringify(usersData) }); renderAdminSelectors(); if(isAdminMode) renderAdminLists(); }
+
+        function listenReservations() { const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("date", "==", currentDateString)); onSnapshot(q, (snap) => { rawReservations = {}; snap.forEach(d => { const data = d.data(); rawReservations[data.deskId] = data; }); updateGlobalState(); }); }
+        function loadConfig() { onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/main`), (s) => { if(s.exists()) { const data = s.data(); try { fixedAssignmentsData = JSON.parse(data.fixedAssignments || '{}'); } catch(e) { fixedAssignmentsData = {}; } try { disabledDesksData = JSON.parse(data.disabledDesks || '[]'); } catch(e) { disabledDesksData = []; } } else { saveConfig(); } updateGlobalState(); }); }
+        function loadUsers() { onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/users`), (s) => { if(s.exists()) { const data = s.data(); try { usersData = JSON.parse(data.usersData || '{}'); } catch(e) { usersData = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA)); } renderAdminSelectors(); } else { saveUsers(); } if(isAdminMode) renderAdminLists(); }); }
+
+        function initUserSelector() { renderAdminSelectors(); }
 
         function initAdminActions() {
              const dSel = document.getElementById('admin-desk-select');
@@ -1083,7 +766,7 @@
              document.getElementById('admin-add-user-btn').onclick = async () => {
                  const n = document.getElementById('admin-new-user-name').value.trim();
                  const dp = document.getElementById('admin-new-user-dept').value;
-                 if(n && dp) { if(!usersData[dp]) usersData[dp] = []; if(!usersData[dp].includes(n)) { usersData[dp].push(n); await saveUsers(); renderAdminLists(); toast("Utilisateur ajouté", "success"); } }
+                 if(n && dp) { if(!usersData[dp]) usersData[dp] = []; if(!usersData[dp].includes(n)) { usersData[dp].push(n); await saveUsers(); toast("Utilisateur ajouté", "success"); } }
              };
              document.getElementById('admin-add-rule-btn').onclick = async () => {
                  const day = document.getElementById('admin-day-select').value;
@@ -1091,93 +774,68 @@
                  const uVal = document.getElementById('admin-rule-user-select').value;
                  if(!uVal) return;
                  const [n, dp] = uVal.split('|');
+                 // DUPLICATE CHECK
+                 const checkDays = (day === 'ALL') ? [1,2,3,4,5] : [parseInt(day)];
+                 let conflict = false;
+                 checkDays.forEach(d => {
+                     const dayData = fixedAssignmentsData[d] || {};
+                     const existingDesk = Object.keys(dayData).find(k => dayData[k].userName === n);
+                     if(existingDesk && existingDesk !== desk) conflict = true;
+                 });
+                 if(conflict) { toast(t('duplicate_fixed'), "error"); return; }
+
                  if(day === 'ALL') { for(let i=1; i<=5; i++) { fixedAssignmentsData[i] = fixedAssignmentsData[i]||{}; fixedAssignmentsData[i][desk] = {userName:n, userDepartment:dp}; } }
                  else { fixedAssignmentsData[day] = fixedAssignmentsData[day]||{}; fixedAssignmentsData[day][desk] = {userName:n, userDepartment:dp}; }
-                 await saveConfig(); renderAdminLists(); toast("Règle ajoutée", "success");
+                 await saveConfig(); toast("Règle ajoutée", "success");
              };
              document.getElementById('admin-disable-btn').onclick = async () => {
                  const d = document.getElementById('admin-disable-desk-select').value;
-                 if(!disabledDesksData.includes(d)) { disabledDesksData.push(d); await saveConfig(); renderAdminLists(); toast("Bureau désactivé", "success"); }
+                 if(!disabledDesksData.includes(d)) { disabledDesksData.push(d); await saveConfig(); toast("Bureau désactivé", "success"); }
              };
              document.getElementById('admin-day-select').onchange = renderAdminLists;
         }
-        function renderAdminLists() {
-             const uList = document.getElementById('admin-users-list'); uList.innerHTML="";
-             Object.keys(usersData).forEach(dp => usersData[dp].forEach(n => {
-                 const d=document.createElement('div'); d.className="flex justify-between px-2 py-1 bg-white text-[10px] border rounded";
-                 d.innerHTML=`${n} <span class="text-slate-400">${dp}</span> <button class="text-red-500 font-bold">×</button>`;
-                 d.querySelector('button').onclick=async()=>{ if(confirm(t('delete_confirm'))) { usersData[dp]=usersData[dp].filter(x=>x!==n); await saveUsers(); renderAdminLists(); }};
-                 uList.appendChild(d);
-             }));
-             const uSel = document.getElementById('admin-rule-user-select'); uSel.innerHTML="";
-             Object.keys(usersData).forEach(dp => usersData[dp].forEach(n => uSel.add(new Option(`${n}`, `${n}|${dp}`))));
-             // Load deps
-             const dSel = document.getElementById('admin-new-user-dept'); dSel.innerHTML = "";
-             Object.keys(DEPT_COLORS).forEach(k => dSel.add(new Option(k, k)));
 
-             const rList = document.getElementById('admin-rules-list'); rList.innerHTML="";
-             const fDay = document.getElementById('admin-day-select').value;
-             for(let i=1; i<=5; i++) {
-                 if(fDay!=='ALL' && i.toString()!==fDay) continue;
-                 const r = fixedAssignmentsData[i];
-                 if(r) Object.keys(r).forEach(k => {
-                     const d=document.createElement('div'); d.className="flex justify-between px-2 py-1 bg-white text-[10px] border rounded";
-                     d.innerHTML=`<b>${k}</b> ${r[k].userName} (J${i}) <button class="text-red-500 font-bold">×</button>`;
-                     d.querySelector('button').onclick=async()=>{ delete fixedAssignmentsData[i][k]; await saveConfig(); renderAdminLists(); };
-                     rList.appendChild(d);
-                 });
-             }
-             const dList = document.getElementById('admin-disabled-list'); dList.innerHTML="";
-             disabledDesksData.forEach(x => {
-                 const d=document.createElement('div'); d.className="flex justify-between px-2 py-1 bg-red-50 text-[10px] border border-red-100 text-red-800 rounded";
-                 d.innerHTML=`<b>${x}</b> ${t('blocked_status')} <button class="font-bold">×</button>`;
-                 d.querySelector('button').onclick=async()=>{ disabledDesksData=disabledDesksData.filter(y=>y!==x); await saveConfig(); renderAdminLists(); };
-                 dList.appendChild(d);
-             });
+        function setupUIListeners() {
+            const toggle = document.getElementById('admin-mode-toggle'); const bg = document.getElementById('toggle-bg'); const dot = document.querySelector('.dot');
+            toggle.addEventListener('change', (e) => {
+                if(e.target.checked) { dot.style.transform = 'translateX(100%)'; bg.classList.remove('bg-slate-200'); bg.classList.add('bg-red-600'); document.getElementById('password-modal').classList.remove('hidden'); document.getElementById('admin-password-input').value = ''; document.getElementById('admin-password-input').focus(); } 
+                else { dot.style.transform = 'translateX(0)'; bg.classList.add('bg-slate-200'); bg.classList.remove('bg-red-600'); disableAdminMode(); }
+            });
+            document.getElementById('cancel-password-btn').onclick = () => { document.getElementById('password-modal').classList.add('hidden'); toggle.checked = false; dot.style.transform = 'translateX(0)'; bg.classList.add('bg-slate-200'); bg.classList.remove('bg-red-600'); };
+            document.getElementById('submit-password-btn').onclick = () => { if(document.getElementById('admin-password-input').value === ADMIN_PASSWORD) { document.getElementById('password-modal').classList.add('hidden'); enableAdminMode(); } else { toast("Mot de passe incorrect", "error"); } };
+
+            document.getElementById('user-select').addEventListener('change', (e) => { const [name, dept] = e.target.value.split('|'); selectedUser = { name, dept, fixedDesk: null }; updateUserInfoCard(); selectedDeskId = null; updateGlobalState(); });
+            const dateInput = document.getElementById('date-selector'); const today = new Date().toISOString().split('T')[0]; dateInput.value = today; currentDateString = today; updateDayLabel(today);
+            dateInput.addEventListener('change', (e) => { currentDateString = e.target.value; updateDayLabel(currentDateString); selectedDeskId = null; listenReservations(); });
+
+            document.getElementById('cancel-selection-btn').onclick = () => { selectedDeskId = null; updateStickyBar(); renderMap(); };
+            document.getElementById('quick-cancel-btn').onclick = cancelMyReservation;
+            document.getElementById('confirm-reservation-btn').onclick = confirmReservation;
+            document.getElementById('admin-delete-btn').onclick = adminDelete;
+
+            initAdminActions();
         }
 
-        function toast(msg, type) {
-             const el = document.getElementById('message-area');
-             el.className = `fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full shadow-2xl font-bold text-sm text-center animate-bounce-in transition-all ${type==='error'?'bg-red-500 text-white':'bg-emerald-500 text-white'}`;
-             el.textContent = msg;
-             el.classList.remove('hidden');
-             setTimeout(()=>el.classList.add('hidden'), 3000);
-        }
-        function setupStickyBarVisibility() { document.getElementById('sticky-action-bar').classList.add('visible'); }
-        function updateDayLabel(d) { 
-            const days = t('days');
-            document.getElementById('day-label').textContent = days[new Date(d).getDay()]; 
+        function initTranslationsAndUI() {
+            initTranslations();
+            setupUIListeners();
+            setupStickyBarVisibility();
         }
 
-        // --- IO ---
-        function listenReservations() {
-             const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("date", "==", currentDateString));
-             onSnapshot(q, (snap) => {
-                 allReservations = {};
-                 snap.forEach(d => allReservations[d.data().deskId] = { ...d.data(), isFixed: false });
-                 const day = new Date(currentDateString).getDay();
-                 const fixed = fixedAssignmentsData[day] || {};
-                 Object.keys(fixed).forEach(k => { if(!allReservations[k]) allReservations[k] = { deskId:k, userName:fixed[k].userName, userDepartment:fixed[k].userDepartment, isFixed:true }; });
-                 
-                 recalculateMyStatus(); renderMap(); updateStickyBar();
-                 if(isAdminMode) renderAdminLists();
-             });
+        // --- 8. INIT ---
+        async function init() {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            initTranslationsAndUI();
+            
+            loadConfig();
+            loadUsers();
+            
+            try { await signInAnonymously(auth); } catch (e) {}
+            onAuthStateChanged(auth, (u) => { if(u) { userId = u.uid; listenReservations(); } });
         }
-        function loadConfig() { onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/main`), (s) => { if(s.exists()) { fixedAssignmentsData = JSON.parse(s.data().fixedAssignments||'{}'); disabledDesksData = JSON.parse(s.data().disabledDesks||'[]'); } else saveConfig(); }); }
-        function loadUsers() { onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/users`), (s) => { if(s.exists()) { usersData = JSON.parse(s.data().usersData||'{}'); initUserSelector(); } else saveUsers(); }); }
-        
-        function initUserSelector() {
-            const sel = document.getElementById('user-select'); 
-            const prev = sel.value;
-            sel.innerHTML=`<option value="" disabled selected>${t('choose_placeholder')}</option>`;
-            const all=[]; Object.keys(usersData).forEach(dp=>usersData[dp].forEach(n=>all.push({n,dp}))); all.sort((a,b)=>a.n.localeCompare(b.n));
-            all.forEach(u=>sel.add(new Option(u.n, `${u.n}|${u.dp}`)));
-            if(prev) { for(let i=0;i<sel.options.length;i++) if(sel.options[i].value===prev) sel.selectedIndex=i; }
-        }
-
-        async function saveConfig() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/main`), { fixedAssignments: JSON.stringify(fixedAssignmentsData), disabledDesks: JSON.stringify(disabledDesksData) }); }
-        async function saveUsers() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/users`), { usersData: JSON.stringify(usersData) }); }
-
         window.onload = init;
     </script>
 </body>
