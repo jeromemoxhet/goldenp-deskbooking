@@ -1,11 +1,11 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : PRODUCTION FINAL - STABLE
+  Version : PRODUCTION FINAL - MOBILE FIX & COLOR LOGIC UPDATE
   
-  Correctifs :
-  - REFERENCE ERROR FIX : La fonction 'initTranslations' a été déplacée en haut du script pour éviter les erreurs de définition.
-  - STRUCTURE : Réorganisation séquentielle stricte pour garantir la stabilité.
-  - FONCTIONNALITÉS : Toutes les features (Admin rouge, Verrouillage horaire, Stats semaine, etc.) sont actives.
+  Mises à jour :
+  - UI MOBILE : Ajout de 'flex-wrap' sur les conteneurs d'îlots pour éviter le débordement horizontal sur petits écrans.
+    Les groupes de bureaux passeront à la ligne si l'écran est trop étroit.
+  - LOGIQUE COULEUR : La disponibilité passe à l'Orange dès qu'il reste 9 places ou moins, et Rouge à 0.
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -385,11 +385,13 @@
                     <div class="flex flex-col md:flex-row gap-6 w-full">
                         <div class="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                             <div class="zone-header" data-i18n="zone_online">ZONE ONLINE PRODUCTS</div>
-                            <div id="online-islands-container" class="flex flex-row gap-4 justify-center h-full items-start"></div>
+                            <!-- MOBILE FIX: flex-wrap added to allow items to wrap on small screens -->
+                            <div id="online-islands-container" class="flex flex-row flex-wrap gap-4 justify-center h-full items-start"></div>
                         </div>
                         <div class="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                             <div class="zone-header" data-i18n="zone_design">ZONE DESIGN STUDIO</div>
-                            <div id="design-islands-container" class="flex flex-row gap-4 justify-center h-full items-start"></div>
+                             <!-- MOBILE FIX: flex-wrap added -->
+                            <div id="design-islands-container" class="flex flex-row flex-wrap gap-4 justify-center h-full items-start"></div>
                         </div>
                     </div>
                 </div>
@@ -620,7 +622,17 @@
                  const occupied = reservedSet.size;
                  const available = Math.max(0, totalCapacity - occupied);
                  const isLocked = isDateLocked(dateStr);
-                 let colorClass = available > 5 ? 'text-green-600' : (available > 0 ? 'text-orange-500' : 'text-red-500');
+                 
+                 // MODIFIED COLOR LOGIC
+                 let colorClass;
+                 if (available === 0) {
+                     colorClass = 'text-red-500';
+                 } else if (available <= 9) {
+                     colorClass = 'text-orange-500';
+                 } else {
+                     colorClass = 'text-green-600';
+                 }
+
                  let bgClass = isSelected ? 'active' : '';
                  if (isLocked) bgClass += ' locked';
                  const el = document.createElement('div'); el.className = `week-stat-card ${bgClass}`;
