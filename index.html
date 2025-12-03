@@ -1,10 +1,11 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : PRODUCTION FINAL - COPYRIGHT ADDED
+  Version : PRODUCTION FINAL - STABLE
   
-  Mises à jour :
-  - FOOTER : Ajout de la mention de copyright "Jerome M. - Design Studio Lead".
-  - MAINTIEN : Conservation de tous les correctifs précédents (Admin, Synchro, UI).
+  Correctifs :
+  - REFERENCE ERROR FIX : La fonction 'initTranslations' a été déplacée en haut du script pour éviter les erreurs de définition.
+  - STRUCTURE : Réorganisation séquentielle stricte pour garantir la stabilité.
+  - FONCTIONNALITÉS : Toutes les features (Admin rouge, Verrouillage horaire, Stats semaine, etc.) sont actives.
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -158,6 +159,42 @@
             align-items: center;
             padding: 4px 0;
         }
+
+        /* Weekly Stats UI Compact */
+        .week-stat-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            background-color: white;
+            transition: all 0.2s;
+            cursor: pointer;
+            min-width: 50px;
+            position: relative;
+            overflow: hidden;
+        }
+        .week-stat-card:hover {
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .week-stat-card.active {
+            background-color: #eff6ff; 
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        .week-stat-card.locked {
+            background-color: #f1f5f9;
+            border-color: #e2e8f0;
+            opacity: 0.8;
+        }
+        .week-stat-day { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 2px; }
+        .week-stat-content { display: flex; align-items: center; gap: 2px; color: #0f172a; }
+        .week-stat-count { font-size: 0.9rem; font-weight: 800; }
+        .week-lock-icon { position: absolute; top: 2px; right: 2px; font-size: 10px; color: #94a3b8; }
     </style>
 </head>
 <body class="antialiased text-slate-800">
@@ -212,9 +249,9 @@
             <h2 class="section-title text-red-700 mb-4 flex items-center gap-2">
                 <span class="material-icons-round text-lg">admin_panel_settings</span> <span data-i18n="admin_config">Configuration Admin</span>
             </h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <!-- Add User -->
-                <div>
+                <div class="md:col-span-1">
                     <label class="block text-xs font-bold text-red-400 uppercase mb-1" data-i18n="add_user">Ajouter Utilisateur</label>
                     <div class="flex gap-1 mb-2">
                         <input id="admin-new-user-name" placeholder="Nom" class="w-full p-2 text-xs border border-red-200 rounded focus:ring-red-500">
@@ -226,7 +263,7 @@
                     <div id="admin-users-list" class="h-24 overflow-y-auto bg-white rounded border border-red-100 p-1 space-y-1"></div>
                 </div>
                 <!-- Rules -->
-                <div>
+                <div class="md:col-span-1">
                     <label class="block text-xs font-bold text-red-400 uppercase mb-1" data-i18n="fixed_rules">Règles Fixes</label>
                     <div class="flex gap-1 flex-wrap mb-2">
                         <select id="admin-day-select" class="w-full p-2 text-xs border border-red-200 rounded font-bold bg-white focus:ring-red-500"></select>
@@ -239,7 +276,7 @@
                     <div id="admin-rules-list" class="h-24 overflow-y-auto bg-white rounded border border-red-100 p-1 space-y-1"></div>
                 </div>
                 <!-- Disable -->
-                <div>
+                <div class="md:col-span-1">
                     <label class="block text-xs font-bold text-red-400 uppercase mb-1" data-i18n="disable_desk">Désactiver Bureau</label>
                     <div class="flex gap-1 mb-2">
                         <select id="admin-disable-desk-select" class="flex-1 p-2 text-xs border border-red-200 rounded focus:ring-red-500"></select>
@@ -248,6 +285,23 @@
                         </div>
                     </div>
                     <div id="admin-disabled-list" class="h-24 overflow-y-auto bg-white rounded border border-red-100 p-1 space-y-1"></div>
+                </div>
+                <!-- Settings -->
+                <div class="md:col-span-1">
+                    <label class="block text-xs font-bold text-red-400 uppercase mb-1" data-i18n="booking_settings">Paramètres Réservation</label>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                            <span class="text-[9px] text-slate-500 font-bold">Heure limite</span>
+                            <input type="number" id="admin-cutoff-hour" class="w-full p-2 text-xs border border-red-200 rounded" min="0" max="23" placeholder="5">
+                        </div>
+                        <div>
+                            <span class="text-[9px] text-slate-500 font-bold">Décalage Jours</span>
+                            <input type="number" id="admin-day-offset" class="w-full p-2 text-xs border border-red-200 rounded" min="-5" max="5" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="admin-button-group w-full">
+                        <button id="admin-save-settings-btn" class="bg-slate-700 text-white py-2 rounded text-xs font-bold hover:bg-slate-800 transition shadow-sm w-full" data-i18n="save_settings">Sauvegarder</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -259,8 +313,8 @@
                 <h2 class="section-title" data-i18n="my_info">Mes Informations</h2>
             </div>
             <div class="p-6 bg-slate-50/50">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="space-y-5">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="space-y-6">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="identity">Identité</label>
                             <div class="relative">
@@ -275,8 +329,17 @@
                                 <div id="day-label" class="px-5 bg-indigo-50 border-l border-indigo-100 flex items-center text-indigo-700 font-bold text-sm uppercase">...</div>
                             </div>
                         </div>
+
+                         <!-- WEEKLY AVAILABILITY WIDGET -->
+                         <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="week_availability">Disponibilités Semaine</label>
+                            <div id="weekly-availability-container" class="grid grid-cols-5 gap-2">
+                                <!-- Generated by JS -->
+                            </div>
+                        </div>
                     </div>
-                    <div id="user-info-card" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-center relative">
+
+                    <div id="user-info-card" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-center relative h-full">
                         <div class="info-grid-row border-b border-slate-100 mb-3 pb-3">
                             <span class="text-xs text-slate-400 font-bold uppercase" data-i18n="department">Département</span>
                             <span id="user-dept-badge" class="text-[10px] px-2 py-1 rounded-full font-bold text-white uppercase tracking-wide bg-slate-300">...</span>
@@ -399,9 +462,9 @@
 
         // 2. CONSTANTS
         const TRANSLATIONS = {
-            fr: { main_title: "Golden Palace - Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Configuration Admin", add_user: "Ajouter Utilisateur", fixed_rules: "Règles Fixes", add: "Ajouter", disable_desk: "Désactiver Bureau", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", select_profile: "Sélectionnez votre profil (Étape 1)", delete_confirm: "Supprimer ?", choose_placeholder: "Choisir...", all_days: "Tous les jours (L-V)", blocked_status: "Bloqué", duplicate_fixed: "Erreur: Cet utilisateur a déjà une place fixe ce jour-là" },
-            nl: { main_title: "Golden Palace - Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Gebruiker Toevoegen", fixed_rules: "Vaste Regels", add: "Toevoegen", disable_desk: "Bureau Blokkeren", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", select_profile: "Selecteer uw profiel (Stap 1)", delete_confirm: "Verwijderen ?", choose_placeholder: "Kies...", all_days: "Alle dagen (M-V)", blocked_status: "Geblokkeerd", duplicate_fixed: "Fout: Deze gebruiker heeft al een vaste plaats op deze dag" },
-            en: { main_title: "Golden Palace - Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "Add User", fixed_rules: "Fixed Rules", add: "Add", disable_desk: "Disable Desk", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", select_profile: "Select your profile (Step 1)", delete_confirm: "Delete ?", choose_placeholder: "Choose...", all_days: "All days (M-F)", blocked_status: "Blocked", duplicate_fixed: "Error: This user already has a fixed seat on that day" }
+            fr: { main_title: "Golden Palace - Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Configuration Admin", add_user: "Ajouter Utilisateur", fixed_rules: "Règles Fixes", add: "Ajouter", disable_desk: "Désactiver Bureau", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", select_profile: "Sélectionnez votre profil (Étape 1)", delete_confirm: "Supprimer ?", choose_placeholder: "Choisir...", all_days: "Tous les jours (L-V)", blocked_status: "Bloqué", duplicate_fixed: "Erreur: Cet utilisateur a déjà une place fixe ce jour-là", week_availability: "Disponibilités Semaine", booking_settings: "Paramètres Réservation", save_settings: "Sauvegarder", locked_date: "Date verrouillée (passée ou heure limite atteinte)" },
+            nl: { main_title: "Golden Palace - Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Gebruiker Toevoegen", fixed_rules: "Vaste Regels", add: "Toevoegen", disable_desk: "Bureau Blokkeren", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", select_profile: "Selecteer uw profiel (Stap 1)", delete_confirm: "Verwijderen ?", choose_placeholder: "Kies...", all_days: "Alle dagen (M-V)", blocked_status: "Geblokkeerd", duplicate_fixed: "Fout: Deze gebruiker heeft al een vaste plaats op deze dag", week_availability: "Beschikbaarheid Week", booking_settings: "Boekingsinstellingen", save_settings: "Opslaan", locked_date: "Datum vergrendeld" },
+            en: { main_title: "Golden Palace - Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "Add User", fixed_rules: "Fixed Rules", add: "Add", disable_desk: "Disable Desk", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", select_profile: "Select your profile (Step 1)", delete_confirm: "Delete ?", choose_placeholder: "Choose...", all_days: "All days (M-F)", blocked_status: "Blocked", duplicate_fixed: "Error: This user already has a fixed seat on that day", week_availability: "Week Availability", booking_settings: "Booking Settings", save_settings: "Save", locked_date: "Date locked" }
         };
 
         const DEPT_COLORS = {
@@ -432,6 +495,7 @@
         let fixedAssignmentsData = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
         let disabledDesksData = [];
         let rawReservations = {}; 
+        let weekReservationsRaw = []; 
         let selectedUser = { name: null, dept: null, fixedDesk: null };
         let currentDateString = "";
         let selectedDeskId = null;
@@ -439,6 +503,7 @@
         let allReservations = {};
         let isAdminMode = false;
         let currentLang = 'fr';
+        let bookingRules = { cutoffHour: 5, dayOffset: 0 };
 
         // --- 4. HELPERS ---
         function t(key) { return TRANSLATIONS[currentLang][key] || key; }
@@ -464,45 +529,19 @@
             });
         }
         function setupStickyBarVisibility() { document.getElementById('sticky-action-bar').classList.add('visible'); }
-
-        // --- 5. LOGIC ---
-        function updateGlobalState() {
-            allReservations = {};
-            Object.keys(rawReservations).forEach(k => { allReservations[k] = { ...rawReservations[k], isFixed: false }; });
-            const dayIndex = new Date(currentDateString + 'T12:00:00').getDay();
-            const fixedToday = fixedAssignmentsData[dayIndex] || {};
-            Object.keys(fixedToday).forEach(deskId => {
-                if (!allReservations[deskId]) {
-                    allReservations[deskId] = { deskId: deskId, userName: fixedToday[deskId].userName, userDepartment: fixedToday[deskId].userDepartment, isFixed: true };
-                } else if(allReservations[deskId].userName === fixedToday[deskId].userName) {
-                    allReservations[deskId].isFixed = true;
-                }
-            });
-            recalculateMyStatus(fixedToday);
-            renderMap(); updateStickyBar(); updateUserInfoCard();
-            if(isAdminMode) renderAdminLists();
-        }
-        function recalculateMyStatus(fixedToday) {
-            currentReservation = null; selectedUser.fixedDesk = null;
-            if(!selectedUser.name) return;
-            const myFixedId = Object.keys(fixedToday).find(k => fixedToday[k].userName === selectedUser.name);
-            if(myFixedId && !disabledDesksData.includes(myFixedId)) {
-                selectedUser.fixedDesk = myFixedId;
-                currentReservation = { deskId: myFixedId, userName: selectedUser.name, isFixed: true };
-            } else {
-                Object.values(allReservations).forEach(res => { if(res.userName === selectedUser.name && !res.isFixed) currentReservation = res; });
+        function getWeekDates(currentDate) {
+            const curr = new Date(currentDate);
+            const day = curr.getDay() === 0 ? 7 : curr.getDay(); 
+            const week = [];
+            const first = curr.getDate() - day + 1;
+            for (let i = 0; i < 5; i++) {
+                const next = new Date(curr);
+                next.setDate(first + i);
+                week.push(next.toISOString().split('T')[0]);
             }
+            return week;
         }
-        function checkFridayStats() {
-            if(!selectedUser.name) return;
-            const m = currentDateString.substring(0, 7);
-            const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("userName", "==", selectedUser.name));
-            getDocs(q).then((snap) => {
-                let count = 0; snap.forEach(d => { if(d.data().date.startsWith(m) && new Date(d.data().date).getDay()===5) count++; });
-                const txt = document.getElementById('user-friday-stats');
-                if(count >= 1) { txt.textContent = t('validated'); txt.className = "text-sm font-bold text-green-600"; } else { txt.textContent = "0 / 1"; txt.className = "text-sm font-bold text-red-500"; }
-            });
-        }
+
         function initTranslations() {
             const update = (lang) => {
                 currentLang = lang;
@@ -520,19 +559,100 @@
                 populateAdminDaySelect(); 
                 renderAdminLists(); 
                 renderLegend();
-                
-                // Update main user selector placeholder
                 const userSel = document.getElementById('user-select');
-                const currentVal = userSel.value;
-                // Only update the placeholder if it's the selected or default option
-                if(userSel.options.length > 0 && userSel.options[0].disabled) {
-                     userSel.options[0].textContent = t('choose_placeholder');
-                }
+                if(userSel.options.length > 0) userSel.options[0].textContent = t('choose_placeholder');
             };
             document.getElementById('lang-fr').onclick = () => update('fr');
             document.getElementById('lang-nl').onclick = () => update('nl');
             document.getElementById('lang-en').onclick = () => update('en');
             update('fr');
+        }
+
+        // --- 5. LOGIC ---
+        function isDateLocked(dateStr) {
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            if (dateStr < todayStr) return true;
+            
+            if (dateStr === todayStr) {
+                if (today.getHours() >= parseInt(bookingRules.cutoffHour)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateGlobalState() {
+            allReservations = {};
+            Object.keys(rawReservations).forEach(k => { allReservations[k] = { ...rawReservations[k], isFixed: false }; });
+            const dayIndex = new Date(currentDateString + 'T12:00:00').getDay();
+            const fixedToday = fixedAssignmentsData[dayIndex] || {};
+            Object.keys(fixedToday).forEach(deskId => {
+                if (!allReservations[deskId]) {
+                    allReservations[deskId] = { deskId: deskId, userName: fixedToday[deskId].userName, userDepartment: fixedToday[deskId].userDepartment, isFixed: true };
+                } else if(allReservations[deskId].userName === fixedToday[deskId].userName) {
+                    allReservations[deskId].isFixed = true;
+                }
+            });
+            recalculateMyStatus(fixedToday);
+            renderWeeklyStats();
+            renderMap(); updateStickyBar(); updateUserInfoCard();
+            
+            document.getElementById('admin-cutoff-hour').value = bookingRules.cutoffHour;
+            document.getElementById('admin-day-offset').value = bookingRules.dayOffset;
+            
+            if(isAdminMode) renderAdminLists();
+        }
+
+        function renderWeeklyStats() {
+             const container = document.getElementById('weekly-availability-container'); container.innerHTML = '';
+             const weekDates = getWeekDates(currentDateString);
+             const dayShortNames = t('days').map(d => d.substring(0,3));
+             const totalCapacity = DESKS_LIST.length - disabledDesksData.length;
+             weekDates.forEach((dateStr, idx) => {
+                 const dayIndex = idx + 1; 
+                 const isSelected = dateStr === currentDateString;
+                 const reservedSet = new Set();
+                 weekReservationsRaw.forEach(r => { if(r.date === dateStr && !disabledDesksData.includes(r.deskId)) reservedSet.add(r.deskId); });
+                 const fixedMap = fixedAssignmentsData[dayIndex] || {};
+                 Object.keys(fixedMap).forEach(dId => { if(!disabledDesksData.includes(dId)) reservedSet.add(dId); });
+                 const occupied = reservedSet.size;
+                 const available = Math.max(0, totalCapacity - occupied);
+                 const isLocked = isDateLocked(dateStr);
+                 let colorClass = available > 5 ? 'text-green-600' : (available > 0 ? 'text-orange-500' : 'text-red-500');
+                 let bgClass = isSelected ? 'active' : '';
+                 if (isLocked) bgClass += ' locked';
+                 const el = document.createElement('div'); el.className = `week-stat-card ${bgClass}`;
+                 el.onclick = () => { document.getElementById('date-selector').value = dateStr; currentDateString = dateStr; updateDayLabel(dateStr); selectedDeskId = null; listenReservations(); };
+                 let content = `<span class="week-stat-day">${dayShortNames[dayIndex]}</span><div class="week-stat-content"><span class="material-icons-round text-sm ${colorClass}">chair</span><span class="week-stat-count ${colorClass}">${available}</span></div>`;
+                 if (isLocked) content += `<span class="week-lock-icon material-icons-round">lock</span>`;
+                 el.innerHTML = content;
+                 container.appendChild(el);
+             });
+        }
+
+        function recalculateMyStatus(fixedToday) {
+            currentReservation = null; selectedUser.fixedDesk = null;
+            if(!selectedUser.name) return;
+            const myFixedId = Object.keys(fixedToday).find(k => fixedToday[k].userName === selectedUser.name);
+            if(myFixedId && !disabledDesksData.includes(myFixedId)) {
+                selectedUser.fixedDesk = myFixedId;
+                currentReservation = { deskId: myFixedId, userName: selectedUser.name, isFixed: true };
+            } else {
+                Object.values(allReservations).forEach(res => { if(res.userName === selectedUser.name && !res.isFixed) currentReservation = res; });
+            }
+        }
+
+        function checkFridayStats() {
+            if(!selectedUser.name) return;
+            const m = currentDateString.substring(0, 7);
+            const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("userName", "==", selectedUser.name));
+            getDocs(q).then((snap) => {
+                let count = 0; snap.forEach(d => { if(d.data().date.startsWith(m) && new Date(d.data().date).getDay()===5) count++; });
+                const txt = document.getElementById('user-friday-stats');
+                if(count >= 1) { txt.textContent = t('validated'); txt.className = "text-sm font-bold text-green-600"; } else { txt.textContent = "0 / 1"; txt.className = "text-sm font-bold text-red-500"; }
+            });
         }
 
         // --- 6. RENDERERS ---
@@ -568,6 +688,8 @@
                 } else {
                     classes += "bg-white border-2 border-green-200 text-green-700 hover:border-green-400 hover:shadow-md";
                 }
+                const isLocked = isDateLocked(currentDateString);
+                if(isLocked && !isAdminMode) { if(!res && !isDisabled) classes += " opacity-50 cursor-not-allowed"; }
                 if(isAdminMode) classes = classes.replace('cursor-not-allowed', 'cursor-pointer');
                 const box = document.createElement('div'); box.className = classes; box.innerHTML = content + bottomStrip;
                 wrapper.appendChild(box); if(overlay) wrapper.innerHTML += overlay; return wrapper;
@@ -701,18 +823,27 @@
         function renderAdminSelectors() {
              const userSelect = document.getElementById('user-select'); const currentUserVal = userSelect.value;
              userSelect.innerHTML=`<option value="" disabled selected>${t('choose_placeholder')}</option>`;
-             const allUsers=[]; Object.keys(usersData).sort().forEach(dp => { usersData[dp].sort().forEach(n => allUsers.push({n,dp})); });
-             allUsers.forEach(u => userSelect.add(new Option(u.n, `${u.n}|${u.dp}`)));
+             // GROUPED OPTIONS
+             Object.keys(usersData).sort().forEach(dp => {
+                 const optGroup = document.createElement('optgroup'); optGroup.label = dp;
+                 usersData[dp].sort().forEach(n => { optGroup.appendChild(new Option(n, `${n}|${dp}`)); });
+                 userSelect.appendChild(optGroup);
+             });
              if(currentUserVal) userSelect.value = currentUserVal;
 
-             const adminRuleSelect = document.getElementById('admin-rule-user-select'); const currentAdminVal = adminRuleSelect.value;
+             const adminRuleSelect = document.getElementById('admin-rule-user-select'); 
+             const currentAdminVal = adminRuleSelect.value; 
              adminRuleSelect.innerHTML = "";
              Object.keys(usersData).sort().forEach(dp => {
                  const optGroup = document.createElement('optgroup'); optGroup.label = dp;
                  usersData[dp].sort().forEach(n => { optGroup.appendChild(new Option(n, `${n}|${dp}`)); });
                  adminRuleSelect.appendChild(optGroup);
              });
-             if(currentAdminVal) { let found=false; for(let i=0; i<adminRuleSelect.options.length; i++) { if(adminRuleSelect.options[i].value===currentAdminVal) found=true; } if(found) adminRuleSelect.value=currentAdminVal; }
+             if(currentAdminVal) { 
+                 let found=false; 
+                 for(let i=0; i<adminRuleSelect.options.length; i++) { if(adminRuleSelect.options[i].value===currentAdminVal) found=true; } 
+                 if(found) adminRuleSelect.value=currentAdminVal; 
+             }
 
              const deptSelect = document.getElementById('admin-new-user-dept'); deptSelect.innerHTML = ""; Object.keys(DEPT_COLORS).sort().forEach(k => deptSelect.add(new Option(k, k)));
              const dSel = document.getElementById('admin-desk-select'); const ddSel = document.getElementById('admin-disable-desk-select');
@@ -727,6 +858,12 @@
                 if(isDisabled) { if(confirm("Réactiver ?")) { disabledDesksData = disabledDesksData.filter(x => x!==id); saveConfig(); } return; }
                 selectedDeskId = id; updateStickyBar(); renderMap(); return;
             }
+            
+            // LOCK CHECK
+            if(isDateLocked(currentDateString)) {
+                 toast(t('locked_date'), "error"); return;
+            }
+
             if(isDisabled) { toast(t('desk_disabled'), "error"); return; }
             const isMe = (currentReservation && currentReservation.deskId === id);
             if(isMe) { toast(currentReservation.isFixed ? t('is_your_fixed') : t('is_your_res'), "info"); return; }
@@ -759,11 +896,36 @@
         function enableAdminMode() { isAdminMode = true; document.getElementById('admin-config-panel').classList.remove('hidden'); renderAdminLists(); renderMap(); updateStickyBar(); }
         function disableAdminMode() { isAdminMode = false; document.getElementById('admin-config-panel').classList.add('hidden'); selectedDeskId = null; renderMap(); updateStickyBar(); }
 
-        async function saveConfig() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/main`), { fixedAssignments: JSON.stringify(fixedAssignmentsData), disabledDesks: JSON.stringify(disabledDesksData) }); updateGlobalState(); }
+        async function saveConfig() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/main`), { fixedAssignments: JSON.stringify(fixedAssignmentsData), disabledDesks: JSON.stringify(disabledDesksData), bookingRules: JSON.stringify(bookingRules) }); updateGlobalState(); }
         async function saveUsers() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/users`), { usersData: JSON.stringify(usersData) }); renderAdminSelectors(); if(isAdminMode) renderAdminLists(); }
 
-        function listenReservations() { const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("date", "==", currentDateString)); onSnapshot(q, (snap) => { rawReservations = {}; snap.forEach(d => { const data = d.data(); rawReservations[data.deskId] = data; }); updateGlobalState(); }); }
-        function loadConfig() { onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/main`), (s) => { if(s.exists()) { const data = s.data(); try { fixedAssignmentsData = JSON.parse(data.fixedAssignments || '{}'); } catch(e) { fixedAssignmentsData = {}; } try { disabledDesksData = JSON.parse(data.disabledDesks || '[]'); } catch(e) { disabledDesksData = []; } } else { saveConfig(); } updateGlobalState(); }); }
+        function listenReservations() { 
+            const weekDates = getWeekDates(currentDateString);
+            const qWeek = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("date", "in", weekDates));
+            onSnapshot(qWeek, (snap) => {
+                 weekReservationsRaw = [];
+                 rawReservations = {}; 
+                 snap.forEach(d => {
+                     const data = d.data();
+                     weekReservationsRaw.push(data);
+                     if(data.date === currentDateString) {
+                         rawReservations[data.deskId] = data;
+                     }
+                 });
+                 updateGlobalState();
+            });
+        }
+        function loadConfig() { 
+            onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/main`), (s) => { 
+                if(s.exists()) { 
+                    const data = s.data(); 
+                    try { fixedAssignmentsData = JSON.parse(data.fixedAssignments || '{}'); } catch(e) { fixedAssignmentsData = {}; } 
+                    try { disabledDesksData = JSON.parse(data.disabledDesks || '[]'); } catch(e) { disabledDesksData = []; } 
+                    try { bookingRules = JSON.parse(data.bookingRules || '{"cutoffHour":5, "dayOffset":0}'); } catch(e) { bookingRules = {cutoffHour:5, dayOffset:0}; }
+                } else { saveConfig(); } 
+                updateGlobalState(); 
+            }); 
+        }
         function loadUsers() { onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/users`), (s) => { if(s.exists()) { const data = s.data(); try { usersData = JSON.parse(data.usersData || '{}'); } catch(e) { usersData = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA)); } renderAdminSelectors(); } else { saveUsers(); } if(isAdminMode) renderAdminLists(); }); }
 
         function initUserSelector() { renderAdminSelectors(); }
@@ -784,7 +946,6 @@
                  const uVal = document.getElementById('admin-rule-user-select').value;
                  if(!uVal) return;
                  const [n, dp] = uVal.split('|');
-                 // DUPLICATE CHECK
                  const checkDays = (day === 'ALL') ? [1,2,3,4,5] : [parseInt(day)];
                  let conflict = false;
                  checkDays.forEach(d => {
@@ -793,7 +954,6 @@
                      if(existingDesk && existingDesk !== desk) conflict = true;
                  });
                  if(conflict) { toast(t('duplicate_fixed'), "error"); return; }
-
                  if(day === 'ALL') { for(let i=1; i<=5; i++) { fixedAssignmentsData[i] = fixedAssignmentsData[i]||{}; fixedAssignmentsData[i][desk] = {userName:n, userDepartment:dp}; } }
                  else { fixedAssignmentsData[day] = fixedAssignmentsData[day]||{}; fixedAssignmentsData[day][desk] = {userName:n, userDepartment:dp}; }
                  await saveConfig(); toast("Règle ajoutée", "success");
@@ -801,6 +961,11 @@
              document.getElementById('admin-disable-btn').onclick = async () => {
                  const d = document.getElementById('admin-disable-desk-select').value;
                  if(!disabledDesksData.includes(d)) { disabledDesksData.push(d); await saveConfig(); toast("Bureau désactivé", "success"); }
+             };
+             document.getElementById('admin-save-settings-btn').onclick = async () => {
+                 bookingRules.cutoffHour = document.getElementById('admin-cutoff-hour').value;
+                 bookingRules.dayOffset = document.getElementById('admin-day-offset').value;
+                 await saveConfig(); toast("Paramètres sauvegardés", "success");
              };
              document.getElementById('admin-day-select').onchange = renderAdminLists;
         }
