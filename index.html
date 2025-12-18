@@ -1,13 +1,11 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : SMART UX & ADMIN FEATURES
+  Version : ADMIN UX REDESIGN & MAP FIX
   
   Mises à jour :
-  - UX : Suppression du sélecteur de département. Détection automatique stricte (SSO -> Admin List).
-  - ADMIN : 
-    1. Configuration du nombre de vendredis obligatoires.
-    2. Consultation de l'historique des réservations par utilisateur (Modal).
-  - LOGIC : Adaptation du calcul "Objectif Vendredi" selon la config admin.
+  - ADMIN UI : Refonte complète avec navigation latérale, cartes espacées et tableaux lisibles.
+  - ADMIN UX : Regroupement logique (Membres, Bureaux, Paramètres).
+  - BUGFIX : Sécurisation du rendu de la carte (renderMap) pour garantir l'affichage de tous les îlots.
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -142,19 +140,24 @@
         .lang-btn-inactive { color: #94a3b8; }
         .lang-btn-inactive:hover { background-color: #f8fafc; }
         
-        /* Admin Tabs */
-        .admin-tab-btn {
+        /* New Admin UI */
+        .admin-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
             padding: 0.75rem 1rem;
-            font-weight: 700;
-            font-size: 0.85rem;
+            border-radius: 0.5rem;
             color: #64748b;
-            border-bottom: 2px solid transparent;
+            font-weight: 600;
+            font-size: 0.9rem;
             transition: all 0.2s;
+            cursor: pointer;
         }
-        .admin-tab-btn.active {
-            color: #c39400;
-            border-bottom-color: #c39400;
+        .admin-nav-item:hover { background-color: #f8fafc; color: #334155; }
+        .admin-nav-item.active {
             background-color: #fffbeb;
+            color: #c39400;
+            font-weight: 700;
         }
         
         .info-grid-row {
@@ -186,9 +189,9 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .week-stat-card.active {
-            background-color: #fffbeb; /* Amber 50 - Lighter Gold */
-            border-color: #c39400; /* GOLDEN */
-            box-shadow: 0 0 0 2px rgba(195, 148, 0, 0.2); /* GOLDEN Glow */
+            background-color: #fffbeb; 
+            border-color: #c39400; 
+            box-shadow: 0 0 0 2px rgba(195, 148, 0, 0.2); 
         }
         .week-stat-card.locked {
             background-color: #f1f5f9;
@@ -323,96 +326,153 @@
             </div>
         </div>
 
-        <!-- NEW ADMIN PANEL DESIGN -->
-        <div id="admin-config-panel" class="hidden mb-8 bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden">
-            <!-- Admin Header & Tabs -->
-            <div class="bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between px-4">
-                <h2 class="section-title text-slate-700 py-4 flex items-center gap-2">
-                    <span class="material-icons-round text-xl text-[#c39400]">admin_panel_settings</span> <span data-i18n="admin_config">Administration</span>
-                </h2>
-                <div class="flex gap-2 w-full md:w-auto overflow-x-auto">
-                    <button class="admin-tab-btn active" data-tab="users" data-i18n="tab_users">Utilisateurs</button>
-                    <button class="admin-tab-btn" data-tab="rules" data-i18n="tab_rules">Règles & Bloquages</button>
-                    <button class="admin-tab-btn" data-tab="settings" data-i18n="tab_settings">Paramètres</button>
-                </div>
-            </div>
-
-            <div class="p-6">
-                <!-- TAB 1: USERS -->
-                <div id="admin-tab-users" class="admin-tab-content">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-3" id="admin-user-action-label" data-i18n="add_user">Ajouter / Modifier Utilisateur</label>
-                            <div class="flex flex-col gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                                <input id="admin-new-user-name" placeholder="Prénom Nom" class="w-full p-3 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none transition">
-                                <select id="admin-new-user-dept" class="w-full p-3 text-sm border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-[#c39400] outline-none transition cursor-pointer"></select>
-                                <div class="flex gap-2 mt-2">
-                                    <button id="admin-cancel-edit-btn" class="hidden flex-1 py-3 bg-white border border-slate-300 text-slate-600 rounded-lg font-bold hover:bg-slate-50 transition" data-i18n="cancel">Annuler</button>
-                                    <button id="admin-add-user-btn" class="flex-1 py-3 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition shadow-md" data-i18n="add">Ajouter</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex flex-col h-full">
-                            <label class="block text-sm font-bold text-slate-700 mb-3" data-i18n="users_list">Liste des utilisateurs</label>
-                            <div id="admin-users-list" class="flex-1 h-64 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 p-2 space-y-1"></div>
-                        </div>
-                    </div>
+        <!-- NEW ADMIN PANEL REDESIGN -->
+        <div id="admin-config-panel" class="hidden mb-8 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+            <div class="flex flex-col md:flex-row h-full">
+                
+                <!-- SIDEBAR NAVIGATION -->
+                <div class="w-full md:w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col gap-2">
+                    <div class="text-xs font-black text-slate-400 uppercase tracking-wider mb-2 px-2">Menu Administration</div>
+                    <button class="admin-nav-item active" data-tab="users">
+                        <span class="material-icons-round">people</span> <span data-i18n="tab_users">Membres & Équipes</span>
+                    </button>
+                    <button class="admin-nav-item" data-tab="rules">
+                        <span class="material-icons-round">desk</span> <span data-i18n="tab_rules">Gestion des Bureaux</span>
+                    </button>
+                    <button class="admin-nav-item" data-tab="settings">
+                        <span class="material-icons-round">settings</span> <span data-i18n="tab_settings">Paramètres Généraux</span>
+                    </button>
                 </div>
 
-                <!-- TAB 2: RULES & BLOCKING -->
-                <div id="admin-tab-rules" class="admin-tab-content hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <!-- Fixed Rules -->
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-3" data-i18n="fixed_rules">Règles de places fixes</label>
-                            <div class="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 mb-4">
-                                <div class="flex flex-col gap-3">
-                                    <div class="flex gap-2">
-                                        <select id="admin-day-select" class="w-1/3 p-3 text-sm border border-indigo-200 rounded-lg font-bold bg-white focus:ring-indigo-500"></select>
-                                        <select id="admin-desk-select" class="w-1/3 p-3 text-sm border border-indigo-200 rounded-lg bg-white focus:ring-indigo-500"></select>
-                                        <select id="admin-rule-user-select" class="flex-1 p-3 text-sm border border-indigo-200 rounded-lg bg-white focus:ring-indigo-500"></select>
+                <!-- CONTENT AREA -->
+                <div class="flex-1 p-6 md:p-8 bg-white min-h-[400px]">
+                    
+                    <!-- TAB 1: USERS -->
+                    <div id="admin-tab-users" class="admin-tab-content">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="users_management">Gestion des Membres</span>
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <!-- FORM -->
+                            <div class="lg:col-span-1">
+                                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm sticky top-4">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-3" id="admin-user-action-label" data-i18n="add_user">Nouveau Membre</label>
+                                    <div class="flex flex-col gap-4">
+                                        <div>
+                                            <span class="text-[10px] text-slate-400 font-semibold mb-1 block">Prénom Nom (Identique SSO)</span>
+                                            <input id="admin-new-user-name" placeholder="Ex: Jean Dupont" class="w-full p-3 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none transition bg-white">
+                                        </div>
+                                        <div>
+                                            <span class="text-[10px] text-slate-400 font-semibold mb-1 block">Département</span>
+                                            <select id="admin-new-user-dept" class="w-full p-3 text-sm border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-[#c39400] outline-none transition cursor-pointer"></select>
+                                        </div>
+                                        <div class="flex gap-2 mt-2 pt-2 border-t border-slate-200">
+                                            <button id="admin-cancel-edit-btn" class="hidden flex-1 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-lg font-bold hover:bg-slate-50 transition text-sm" data-i18n="cancel">Annuler</button>
+                                            <button id="admin-add-user-btn" class="flex-1 py-2.5 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition shadow-md text-sm" data-i18n="add">Ajouter</button>
+                                        </div>
                                     </div>
-                                    <button id="admin-add-rule-btn" class="w-full py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition shadow-sm" data-i18n="add">Ajouter Règle</button>
                                 </div>
                             </div>
-                            <div id="admin-rules-list" class="h-48 overflow-y-auto bg-white rounded-xl border border-slate-200 p-2 space-y-1"></div>
-                        </div>
-                        <!-- Blocking -->
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-3" data-i18n="disable_desk">Blocage de bureaux</label>
-                            <div class="p-4 bg-red-50 rounded-xl border border-red-100 mb-4">
-                                <div class="flex gap-2">
-                                    <select id="admin-disable-desk-select" class="flex-1 p-3 text-sm border border-red-200 rounded-lg focus:ring-red-500"></select>
-                                    <button id="admin-disable-btn" class="px-6 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition shadow-sm" data-i18n="block">Bloquer</button>
+                            
+                            <!-- LIST -->
+                            <div class="lg:col-span-2">
+                                <div class="flex justify-between items-center mb-3">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase" data-i18n="users_list">Annuaire complet</label>
+                                    <input type="text" id="admin-user-search" placeholder="Rechercher..." class="text-xs p-2 border border-slate-200 rounded-lg w-48 bg-slate-50 focus:bg-white transition">
+                                </div>
+                                <div id="admin-users-list" class="h-96 overflow-y-auto pr-2 space-y-2">
+                                    <!-- Populated by JS -->
                                 </div>
                             </div>
-                            <div id="admin-disabled-list" class="h-48 overflow-y-auto bg-white rounded-xl border border-slate-200 p-2 space-y-1"></div>
                         </div>
                     </div>
-                </div>
 
-                <!-- TAB 3: SETTINGS -->
-                <div id="admin-tab-settings" class="admin-tab-content hidden">
-                    <div class="max-w-md mx-auto">
-                        <label class="block text-sm font-bold text-slate-700 mb-3" data-i18n="booking_settings">Configuration Globale</label>
-                        <div class="p-6 bg-slate-50 rounded-xl border border-slate-200">
-                            <div class="space-y-4">
-                                <div>
-                                    <span class="block text-xs font-bold text-slate-500 uppercase mb-1">Heure limite de réservation (0-23h)</span>
-                                    <input type="number" id="admin-cutoff-hour" class="w-full p-3 text-sm border border-slate-300 rounded-lg" min="0" max="23">
+                    <!-- TAB 2: RULES & BLOCKING -->
+                    <div id="admin-tab-rules" class="admin-tab-content hidden">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="desk_management">Gestion des Bureaux</span>
+                        </h3>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <!-- Fixed Rules Section -->
+                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                <div class="bg-indigo-50 p-4 border-b border-indigo-100 flex items-center gap-2">
+                                    <span class="material-icons-round text-indigo-500">lock</span>
+                                    <h4 class="font-bold text-indigo-900" data-i18n="fixed_rules">Attribution Places Fixes</h4>
                                 </div>
-                                <div>
-                                    <span class="block text-xs font-bold text-slate-500 uppercase mb-1">Décalage jours visibles</span>
-                                    <input type="number" id="admin-day-offset" class="w-full p-3 text-sm border border-slate-300 rounded-lg" min="-5" max="5" placeholder="0">
+                                <div class="p-4">
+                                    <div class="grid grid-cols-3 gap-2 mb-3">
+                                        <select id="admin-day-select" class="p-2 text-xs border border-indigo-200 rounded font-bold bg-white focus:ring-indigo-500"></select>
+                                        <select id="admin-desk-select" class="p-2 text-xs border border-indigo-200 rounded bg-white focus:ring-indigo-500"></select>
+                                        <select id="admin-rule-user-select" class="p-2 text-xs border border-indigo-200 rounded bg-white focus:ring-indigo-500"></select>
+                                    </div>
+                                    <button id="admin-add-rule-btn" class="w-full py-2 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 transition mb-4" data-i18n="add">Créer la règle</button>
+                                    <div id="admin-rules-list" class="h-48 overflow-y-auto bg-slate-50 rounded border border-slate-200 p-2 space-y-1"></div>
                                 </div>
-                                <div>
-                                    <span class="block text-xs font-bold text-slate-500 uppercase mb-1">Objectif Vendredis / Mois</span>
-                                    <input type="number" id="admin-required-fridays" class="w-full p-3 text-sm border border-slate-300 rounded-lg" min="1" max="5" placeholder="1">
+                            </div>
+
+                            <!-- Blocking Section -->
+                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                <div class="bg-red-50 p-4 border-b border-red-100 flex items-center gap-2">
+                                    <span class="material-icons-round text-red-500">block</span>
+                                    <h4 class="font-bold text-red-900" data-i18n="disable_desk">Blocage Technique</h4>
                                 </div>
-                                <button id="admin-save-settings-btn" class="w-full mt-2 py-3 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition shadow-md" data-i18n="save_settings">Sauvegarder Configuration</button>
+                                <div class="p-4">
+                                    <div class="flex gap-2 mb-3">
+                                        <select id="admin-disable-desk-select" class="flex-1 p-2 text-xs border border-red-200 rounded focus:ring-red-500"></select>
+                                        <button id="admin-disable-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition" data-i18n="block">Bloquer</button>
+                                    </div>
+                                    <div id="admin-disabled-list" class="h-48 overflow-y-auto bg-slate-50 rounded border border-slate-200 p-2 space-y-1"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- TAB 3: SETTINGS -->
+                    <div id="admin-tab-settings" class="admin-tab-content hidden">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="booking_settings">Paramètres de l'Application</span>
+                        </h3>
+                        
+                        <div class="max-w-2xl">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="p-5 bg-slate-50 rounded-xl border border-slate-200">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Heure limite de réservation</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" id="admin-cutoff-hour" class="w-20 p-3 text-center font-bold border border-slate-300 rounded-lg" min="0" max="23">
+                                        <span class="text-sm text-slate-600">heures (00h - 23h)</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-2">Passé cette heure, la journée en cours est verrouillée.</p>
+                                </div>
+
+                                <div class="p-5 bg-slate-50 rounded-xl border border-slate-200">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Visibilité Calendrier</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" id="admin-day-offset" class="w-20 p-3 text-center font-bold border border-slate-300 rounded-lg" min="-5" max="5">
+                                        <span class="text-sm text-slate-600">jours de décalage</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-2">Ajuste la date de "démarrage" de la semaine affichée.</p>
+                                </div>
+
+                                <div class="p-5 bg-slate-50 rounded-xl border border-slate-200 md:col-span-2">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Objectif Télétravail</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" id="admin-required-fridays" class="w-20 p-3 text-center font-bold border border-slate-300 rounded-lg" min="1" max="5">
+                                        <span class="text-sm text-slate-600">vendredis obligatoires par mois</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-2">Définit l'objectif affiché sur la carte d'identité de l'utilisateur.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8 pt-6 border-t border-slate-100">
+                                <button id="admin-save-settings-btn" class="px-8 py-3 bg-[#c39400] text-white rounded-xl font-bold hover:bg-[#a37c00] transition shadow-lg shadow-[#c39400]/20 flex items-center gap-2">
+                                    <span class="material-icons-round">save</span> <span data-i18n="save_settings">Sauvegarder tout</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -587,9 +647,9 @@
 
         // 2. CONSTANTS
         const TRANSLATIONS = {
-            fr: { main_title: "Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Administration", add_user: "Ajouter Utilisateur", edit_user: "Modifier Utilisateur", update: "Mettre à jour", fixed_rules: "Règles Fixes", add: "Ajouter", disable_desk: "Désactiver Bureau", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", select_profile: "Sélectionnez votre profil (Étape 1)", delete_confirm: "Supprimer ?", choose_placeholder: "Choisir...", all_days: "Tous les jours (L-V)", blocked_status: "Bloqué", duplicate_fixed: "Erreur: Cet utilisateur a déjà une place fixe ce jour-là", week_availability: "Disponibilités Semaine", booking_settings: "Paramètres Réservation", save_settings: "Sauvegarder", locked_date: "Date verrouillée (passée ou heure limite atteinte)", login_sso: "Connexion SSO", logout: "Déconnexion", login_title: "Espace Réservation de Sièges", login_intro: "Veuillez vous authentifier avec votre compte Microsoft pour accéder aux réservations.", login_btn_text: "Connexion SSO", login_secure: "Accès sécurisé et restreint au personnel.", status_connected: "Connecté", users_list: "Liste des utilisateurs", tab_users: "Utilisateurs", tab_rules: "Règles", tab_settings: "Paramètres" },
-            nl: { main_title: "Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Gebruiker Toevoegen", edit_user: "Gebruiker Bewerken", update: "Updaten", fixed_rules: "Vaste Regels", add: "Toevoegen", disable_desk: "Bureau Blokkeren", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", select_profile: "Selecteer uw profiel (Stap 1)", delete_confirm: "Verwijderen ?", choose_placeholder: "Kies...", all_days: "Alle dagen (M-V)", blocked_status: "Geblokkeerd", duplicate_fixed: "Fout: Deze gebruiker heeft al een vaste plaats op deze dag", week_availability: "Beschikbaarheid Week", booking_settings: "Boekingsinstellingen", save_settings: "Opslaan", locked_date: "Datum vergrendeld", login_sso: "Inloggen", logout: "Afmelden", login_title: "Stoelreservering Zone", login_intro: "Gelieve u te authenticeren met uw Microsoft-account om toegang te krijgen tot de reserveringen.", login_btn_text: "SSO Aanmelding", login_secure: "Beveiligde toegang beperkt tot personeel.", status_connected: "Verbonden", users_list: "Gebruikerslijst", tab_users: "Gebruikers", tab_rules: "Regels", tab_settings: "Instellingen" },
-            en: { main_title: "Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "Add User", edit_user: "Edit User", update: "Update", fixed_rules: "Fixed Rules", add: "Add", disable_desk: "Disable Desk", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", select_profile: "Select your profile (Step 1)", delete_confirm: "Delete ?", choose_placeholder: "Choose...", all_days: "All days (M-F)", blocked_status: "Blocked", duplicate_fixed: "Error: This user already has a fixed seat on that day", week_availability: "Week Availability", booking_settings: "Booking Settings", save_settings: "Save", locked_date: "Date locked", login_sso: "Login", logout: "Logout", login_title: "Seat Reservation Area", login_intro: "Please authenticate with your Microsoft account to access reservations.", login_btn_text: "SSO Login", login_secure: "Secure access restricted to personnel.", status_connected: "Connected", users_list: "Users List", tab_users: "Users", tab_rules: "Rules", tab_settings: "Settings" }
+            fr: { main_title: "Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Administration", add_user: "Nouveau Membre", edit_user: "Modifier Membre", update: "Mettre à jour", fixed_rules: "Attribution Places Fixes", add: "Ajouter", disable_desk: "Blocage Technique", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", unknown_dept: "Profil non configuré. Contactez l'IT.", users_list: "Annuaire complet", tab_users: "Membres & Équipes", tab_rules: "Gestion Bureaux", tab_settings: "Paramètres", users_management: "Gestion des Membres", desk_management: "Gestion des Bureaux", booking_settings: "Paramètres de l'Application", save_settings: "Sauvegarder tout" },
+            nl: { main_title: "Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Nieuw Lid", edit_user: "Lid Bewerken", update: "Updaten", fixed_rules: "Vaste Plaatsen", add: "Toevoegen", disable_desk: "Technische Blokkering", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", unknown_dept: "Profiel niet geconfigureerd. Neem contact op met IT.", users_list: "Volledige lijst", tab_users: "Leden & Teams", tab_rules: "Bureau Beheer", tab_settings: "Instellingen", users_management: "Ledenbeheer", desk_management: "Bureau Beheer", booking_settings: "App Instellingen", save_settings: "Alles opslaan" },
+            en: { main_title: "Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "New Member", edit_user: "Edit Member", update: "Update", fixed_rules: "Fixed Seats", add: "Add", disable_desk: "Technical Block", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", unknown_dept: "Profile not configured. Contact IT.", users_list: "Full Directory", tab_users: "Members & Teams", tab_rules: "Desk Mgmt", tab_settings: "Settings", users_management: "Member Management", desk_management: "Desk Management", booking_settings: "App Settings", save_settings: "Save All" }
         };
 
         const DEPT_COLORS = {
@@ -894,6 +954,22 @@
             });
             [DESK_LAYOUT.DESIGN_STUDIO_1, DESK_LAYOUT.DESIGN_STUDIO_2].forEach(i => des.appendChild(renderIsland(i, create)));
             [DESK_LAYOUT.ONLINE_F, DESK_LAYOUT.ONLINE_G].forEach(i => onl.appendChild(renderIsland(i, create)));
+        }
+        function renderIsland(data, createFn) {
+            const div = document.createElement('div'); div.className = "flex flex-col items-center flex-1 p-2 bg-white rounded-xl";
+            const grid = document.createElement('div'); grid.className = "grid gap-y-2 gap-x-4"; grid.style.gridTemplateColumns = "1fr 8px 1fr"; 
+            for(let i=0; i<4; i++) {
+                const d1 = createFn(data.col1[i]); d1.style.justifySelf="end";
+                const d2 = createFn(data.col2[i]); d2.style.justifySelf="start";
+                grid.append(d1);
+                if(i===0) { 
+                    const bar = document.createElement('div'); bar.className="bg-slate-400 rounded-full w-2 h-full row-span-4 opacity-80 border border-slate-500"; 
+                    bar.style.gridColumn="2"; bar.style.gridRow="1 / span 4";
+                    grid.append(bar);
+                }
+                grid.append(d2);
+            }
+            div.appendChild(grid); return div;
         }
         function updateStickyBar() {
             const def = document.getElementById('default-bar-status'); const sel = document.getElementById('selection-bar-status'); const myTxt = document.getElementById('my-status-text');
