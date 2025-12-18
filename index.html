@@ -1,10 +1,10 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : SECURE SSO WALL + DOMAIN DEBUG V2
+  Version : LOGO INTEGRATION + SECURE SSO
   
   Mises à jour :
-  - ERROR HANDLING : Message d'erreur explicite pour 'auth/unauthorized-domain'.
-                     Affiche les instructions exactes pour ajouter le domaine dans Firebase.
+  - UI : Intégration des emplacements pour le LOGO (Header + Login Overlay).
+  - ERROR HANDLING : Conservation du debug SSO.
   - SECURITY : Login Overlay maintenu.
 -->
 <!DOCTYPE html>
@@ -205,6 +205,10 @@
     <!-- LOGIN WALL / OVERLAY -->
     <div id="login-overlay" class="fixed inset-0 z-[100] bg-slate-50 flex flex-col items-center justify-center p-6 transition-opacity duration-500">
         <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-sm w-full text-center">
+            
+            <!-- LOGO (OVERLAY) -->
+            <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-12 mx-auto mb-6 object-contain">
+            
             <div class="mb-6">
                 <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-none mb-2">Golden Palace</h1>
                 <p class="text-sm text-slate-500 font-medium uppercase tracking-wide">Espace Réservation</p>
@@ -232,7 +236,10 @@
         
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-6">
+                <!-- LOGO (HEADER) -->
+                <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-10 w-auto object-contain hidden md:block">
+                
                 <div>
                     <h1 class="text-3xl font-black text-slate-800 tracking-tight leading-none" data-i18n="main_title">Golden Palace - Réservation de sièges</h1>
                     <p class="text-sm text-slate-500 font-medium mt-1" data-i18n="subtitle">Paysager - Croix de guerre 120</p>
@@ -922,138 +929,6 @@
              const deptSelect = document.getElementById('admin-new-user-dept'); deptSelect.innerHTML = ""; Object.keys(DEPT_COLORS).sort().forEach(k => deptSelect.add(new Option(k, k)));
              const dSel = document.getElementById('admin-desk-select'); const ddSel = document.getElementById('admin-disable-desk-select');
              dSel.innerHTML = ""; ddSel.innerHTML = ""; DESKS_LIST.sort().forEach(d => { dSel.add(new Option(d,d)); ddSel.add(new Option(d,d)); });
-        }
-
-        // --- 7. INTERACTIONS & DATA IO ---
-        function handleDeskClick(id) {
-            if(!selectedUser.name) { toast(t('select_profile'), "error"); return; }
-            const res = allReservations[id]; const isDisabled = disabledDesksData.includes(id);
-            if(isAdminMode) {
-                if(isDisabled) { if(confirm("Réactiver ?")) { disabledDesksData = disabledDesksData.filter(x => x!==id); saveConfig(); } return; }
-                selectedDeskId = id; updateStickyBar(); renderMap(); return;
-            }
-            
-            // LOCK CHECK
-            if(isDateLocked(currentDateString)) {
-                 toast(t('locked_date'), "error"); return;
-            }
-
-            if(isDisabled) { toast(t('desk_disabled'), "error"); return; }
-            const isMe = (currentReservation && currentReservation.deskId === id);
-            if(isMe) { toast(currentReservation.isFixed ? t('is_your_fixed') : t('is_your_res'), "info"); return; }
-            if(res) { toast(`${t('occupied_by')} ${res.userName}`, "error"); return; }
-            if(selectedUser.fixedDesk) { toast(t('fixed_error'), "error"); return; }
-            if(currentReservation) { toast(t('release_first'), "error"); return; }
-            selectedDeskId = (selectedDeskId === id) ? null : id; updateStickyBar(); renderMap();
-        }
-
-        async function confirmReservation() {
-            const docId = `${currentDateString}_${selectedDeskId}`;
-            await setDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${docId}`), { userId, userName: selectedUser.name, userDepartment: selectedUser.dept, timestamp: Date.now(), date: currentDateString, deskId: selectedDeskId });
-            toast(t('res_confirmed'), "success"); selectedDeskId = null; updateGlobalState();
-        }
-        async function cancelMyReservation() {
-            if(currentReservation && !currentReservation.isFixed) {
-                await deleteDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${currentDateString}_${currentReservation.deskId}`));
-                toast(t('place_freed'), "info"); updateGlobalState();
-            }
-        }
-        async function adminDelete() {
-             const res = allReservations[selectedDeskId];
-             if(res && res.isFixed) {
-                 const dayIndex = new Date(currentDateString + 'T12:00:00').getDay();
-                 if(confirm("Supprimer cette règle fixe ?")) { delete fixedAssignmentsData[dayIndex][selectedDeskId]; await saveConfig(); }
-             } else { await deleteDoc(doc(db, `/artifacts/${appId}/public/data/desk_reservations/${currentDateString}_${selectedDeskId}`)); }
-             selectedDeskId = null;
-        }
-
-        function enableAdminMode() { isAdminMode = true; document.getElementById('admin-config-panel').classList.remove('hidden'); renderAdminLists(); renderMap(); updateStickyBar(); }
-        function disableAdminMode() { isAdminMode = false; document.getElementById('admin-config-panel').classList.add('hidden'); selectedDeskId = null; renderMap(); updateStickyBar(); }
-
-        async function saveConfig() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/main`), { fixedAssignments: JSON.stringify(fixedAssignmentsData), disabledDesks: JSON.stringify(disabledDesksData), bookingRules: JSON.stringify(bookingRules) }); updateGlobalState(); }
-        async function saveUsers() { await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/users`), { usersData: JSON.stringify(usersData) }); renderAdminSelectors(); if(isAdminMode) renderAdminLists(); }
-
-        function listenReservations() { 
-            const weekDates = getWeekDates(currentDateString);
-            const qWeek = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("date", "in", weekDates));
-            onSnapshot(qWeek, (snap) => {
-                 weekReservationsRaw = [];
-                 rawReservations = {}; 
-                 snap.forEach(d => {
-                     const data = d.data();
-                     weekReservationsRaw.push(data);
-                     if(data.date === currentDateString) {
-                         rawReservations[data.deskId] = data;
-                     }
-                 });
-                 updateGlobalState();
-            });
-        }
-        function loadConfig() { 
-            onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/main`), (s) => { 
-                if(s.exists()) { 
-                    const data = s.data(); 
-                    try { fixedAssignmentsData = JSON.parse(data.fixedAssignments || '{}'); } catch(e) { fixedAssignmentsData = {}; } 
-                    try { disabledDesksData = JSON.parse(data.disabledDesks || '[]'); } catch(e) { disabledDesksData = []; } 
-                    try { bookingRules = JSON.parse(data.bookingRules || '{"cutoffHour":5, "dayOffset":0}'); } catch(e) { bookingRules = {cutoffHour:5, dayOffset:0}; }
-                } else { saveConfig(); } 
-                updateGlobalState(); 
-            }); 
-        }
-        function loadUsers() { 
-            onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/users`), (s) => { 
-                if(s.exists()) { 
-                    const data = s.data(); 
-                    try { usersData = JSON.parse(data.usersData || '{}'); } catch(e) { usersData = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA)); } renderAdminSelectors(); 
-                    
-                    // IF LOGGED IN, RETRY AUTO SELECT AFTER LOADING USERS
-                    if(auth.currentUser) autoSelectProfile(auth.currentUser.displayName);
-                    
-                } else { saveUsers(); } 
-                if(isAdminMode) renderAdminLists(); 
-            }); 
-        }
-
-        function initUserSelector() { renderAdminSelectors(); }
-
-        function initAdminActions() {
-             const dSel = document.getElementById('admin-desk-select');
-             const ddSel = document.getElementById('admin-disable-desk-select');
-             DESKS_LIST.sort().forEach(d => { dSel.add(new Option(d,d)); ddSel.add(new Option(d,d)); });
-
-             document.getElementById('admin-add-user-btn').onclick = async () => {
-                 const n = document.getElementById('admin-new-user-name').value.trim();
-                 const dp = document.getElementById('admin-new-user-dept').value;
-                 if(n && dp) { if(!usersData[dp]) usersData[dp] = []; if(!usersData[dp].includes(n)) { usersData[dp].push(n); await saveUsers(); toast("Utilisateur ajouté", "success"); } }
-             };
-             document.getElementById('admin-add-rule-btn').onclick = async () => {
-                 const day = document.getElementById('admin-day-select').value;
-                 const desk = document.getElementById('admin-desk-select').value;
-                 const uVal = document.getElementById('admin-rule-user-select').value;
-                 if(!uVal) return;
-                 const [n, dp] = uVal.split('|');
-                 const checkDays = (day === 'ALL') ? [1,2,3,4,5] : [parseInt(day)];
-                 let conflict = false;
-                 checkDays.forEach(d => {
-                     const dayData = fixedAssignmentsData[d] || {};
-                     const existingDesk = Object.keys(dayData).find(k => dayData[k].userName === n);
-                     if(existingDesk && existingDesk !== desk) conflict = true;
-                 });
-                 if(conflict) { toast(t('duplicate_fixed'), "error"); return; }
-                 if(day === 'ALL') { for(let i=1; i<=5; i++) { fixedAssignmentsData[i] = fixedAssignmentsData[i]||{}; fixedAssignmentsData[i][desk] = {userName:n, userDepartment:dp}; } }
-                 else { fixedAssignmentsData[day] = fixedAssignmentsData[day]||{}; fixedAssignmentsData[day][desk] = {userName:n, userDepartment:dp}; }
-                 await saveConfig(); toast("Règle ajoutée", "success");
-             };
-             document.getElementById('admin-disable-btn').onclick = async () => {
-                 const d = document.getElementById('admin-disable-desk-select').value;
-                 if(!disabledDesksData.includes(d)) { disabledDesksData.push(d); await saveConfig(); toast("Bureau désactivé", "success"); }
-             };
-             document.getElementById('admin-save-settings-btn').onclick = async () => {
-                 bookingRules.cutoffHour = document.getElementById('admin-cutoff-hour').value;
-                 bookingRules.dayOffset = document.getElementById('admin-day-offset').value;
-                 await saveConfig(); toast("Paramètres sauvegardés", "success");
-             };
-             document.getElementById('admin-day-select').onchange = renderAdminLists;
         }
 
         // --- AUTH LOGIC ---
