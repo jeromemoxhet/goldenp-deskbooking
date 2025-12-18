@@ -1,11 +1,10 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : USER EDITING FEATURE
+  Version : MAP RENDERING FIX
   
   Mises à jour :
-  - ADMIN : Ajout de la fonctionnalité "Éditer un utilisateur".
-  - LOGIC : Migration automatique des réservations et places fixes lors du changement de nom/département.
-  - UI : Boutons Modifier/Annuler dans le panneau admin.
+  - BUGFIX CRITIQUE : Restauration de l'affichage des zones "Design Studio" et "Online Products" qui avaient disparu.
+  - STABILITY : Amélioration de la fonction de création des bureaux (create) pour éviter les conflits DOM (remplacement de innerHTML+= par appendChild).
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -732,45 +731,73 @@
         // --- 6. RENDERERS ---
         function renderMap() {
             const create = (id) => {
-                const wrapper = document.createElement('div'); wrapper.className = "desk-wrapper"; wrapper.onclick = () => handleDeskClick(id);
-                const res = allReservations[id]; const isDisabled = disabledDesksData.includes(id);
-                const isFixed = !isDisabled && res && res.isFixed; const isMe = currentReservation && currentReservation.deskId === id;
-                const isTaken = !isDisabled && res && !isMe; const isSelected = selectedDeskId === id;
-                let classes = "desk-box "; let content = `<span class="text-[14px] font-bold z-10 mb-1">${id}</span>`; let bottomStrip = "", overlay = "";
-                if(isDisabled) {
+                const wrapper = document.createElement('div');
+                wrapper.className = "desk-wrapper";
+                wrapper.onclick = () => handleDeskClick(id);
+
+                const res = allReservations[id];
+                const isDisabled = disabledDesksData.includes(id);
+                const isFixed = !isDisabled && res && res.isFixed;
+                const isMe = currentReservation && currentReservation.deskId === id;
+                const isTaken = !isDisabled && res && !isMe;
+                const isSelected = selectedDeskId === id;
+                
+                let classes = "desk-box ";
+                let content = `<span class="text-[14px] font-bold z-10 mb-1">${id}</span>`;
+                let bottomStrip = "";
+                let overlay = "";
+
+                if (isDisabled) {
                     classes += "bg-slate-800 border-slate-900 text-slate-500 opacity-80 cursor-not-allowed";
                     overlay = `<div class="floating-badge bg-slate-700 text-white border-slate-600"><span class="material-icons-round text-sm">block</span></div>`;
-                } else if(isFixed) {
+                } else if (isFixed) {
                     classes += "bg-slate-100 border-2 border-slate-300 text-slate-500 shadow-sm";
                     const name = res ? formatName(res.userName) : '';
                     content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-slate-600 font-bold">${name}</span>`;
                     overlay = `<div class="floating-badge bg-slate-800 text-white"><span class="material-icons-round text-[12px]">lock</span></div>`;
                     const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
                     bottomStrip = `<div class="absolute bottom-0 left-0 right-0 h-1.5 ${color}"></div>`;
-                    if(isMe) classes += " ring-4 ring-blue-300"; 
-                } else if(isMe) {
+                    if (isMe) classes += " ring-4 ring-blue-300";
+                } else if (isMe) {
                     classes += "bg-blue-100 border-2 border-blue-300 text-blue-700 shadow-md ring-4 ring-blue-200";
                     content += `<span class="text-[10px] font-bold text-blue-600 leading-tight">${t('my_res')}</span>`;
-                } else if(isTaken) {
+                } else if (isTaken) {
                     classes += "bg-red-50 border-2 border-red-200 text-red-400 shadow-sm";
                     const name = formatName(res.userName);
                     content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-red-500">${name}</span>`;
                     const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
                     bottomStrip = `<div class="absolute bottom-0 left-0 right-0 h-1.5 ${color}"></div>`;
-                } else if(isSelected) {
+                } else if (isSelected) {
                     classes += "bg-yellow-300 border-2 border-yellow-500 text-yellow-900 scale-110 shadow-xl z-20 ring-4 ring-yellow-100";
                 } else {
                     classes += "bg-white border-2 border-green-200 text-green-700 hover:border-green-400 hover:shadow-md";
                 }
+
                 const isLocked = isDateLocked(currentDateString);
-                if(isLocked && !isAdminMode) { if(!res && !isDisabled) classes += " opacity-50 cursor-not-allowed"; }
-                if(isAdminMode) classes = classes.replace('cursor-not-allowed', 'cursor-pointer');
-                const box = document.createElement('div'); box.className = classes; box.innerHTML = content + bottomStrip;
-                wrapper.appendChild(box); if(overlay) wrapper.innerHTML += overlay; return wrapper;
+                if (isLocked && !isAdminMode) {
+                    if (!res && !isDisabled) classes += " opacity-50 cursor-not-allowed";
+                }
+                if (isAdminMode) classes = classes.replace('cursor-not-allowed', 'cursor-pointer');
+
+                const box = document.createElement('div');
+                box.className = classes;
+                box.innerHTML = content + bottomStrip;
+                wrapper.appendChild(box);
+
+                if (overlay) {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = overlay;
+                    while (temp.firstChild) {
+                        wrapper.appendChild(temp.firstChild);
+                    }
+                }
+                return wrapper;
             };
+
             const top = document.getElementById('top-row-container'); top.innerHTML='';
             const des = document.getElementById('design-islands-container'); des.innerHTML='';
             const onl = document.getElementById('online-islands-container'); onl.innerHTML='';
+            
             DESK_LAYOUT.TOP_ROW.groups.forEach(g => {
                  const div = document.createElement('div'); div.className = "flex flex-col items-center p-2 rounded-xl bg-white";
                  const sub = document.createElement('div');
@@ -789,9 +816,28 @@
                  }
                  div.append(sub); top.append(div);
             });
+            
             [DESK_LAYOUT.DESIGN_STUDIO_1, DESK_LAYOUT.DESIGN_STUDIO_2].forEach(i => des.appendChild(renderIsland(i, create)));
             [DESK_LAYOUT.ONLINE_F, DESK_LAYOUT.ONLINE_G].forEach(i => onl.appendChild(renderIsland(i, create)));
         }
+
+        function renderIsland(data, createFn) {
+            const div = document.createElement('div'); div.className = "flex flex-col items-center flex-1 p-2 bg-white rounded-xl";
+            const grid = document.createElement('div'); grid.className = "grid gap-y-2 gap-x-4"; grid.style.gridTemplateColumns = "1fr 8px 1fr"; 
+            for(let i=0; i<4; i++) {
+                const d1 = createFn(data.col1[i]); d1.style.justifySelf="end";
+                const d2 = createFn(data.col2[i]); d2.style.justifySelf="start";
+                grid.append(d1);
+                if(i===0) { 
+                    const bar = document.createElement('div'); bar.className="bg-slate-400 rounded-full w-2 h-full row-span-4 opacity-80 border border-slate-500"; 
+                    bar.style.gridColumn="2"; bar.style.gridRow="1 / span 4";
+                    grid.append(bar);
+                }
+                grid.append(d2);
+            }
+            div.appendChild(grid); return div;
+        }
+
         function updateStickyBar() {
             const def = document.getElementById('default-bar-status'); const sel = document.getElementById('selection-bar-status'); const myTxt = document.getElementById('my-status-text');
             const b1=document.getElementById('quick-cancel-btn'); const b2=document.getElementById('cancel-selection-btn'); const b3=document.getElementById('confirm-reservation-btn'); const b4=document.getElementById('admin-delete-btn');
