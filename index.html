@@ -1,11 +1,10 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : PRODUCTION FINAL - MOBILE FIX & COLOR LOGIC UPDATE
+  Version : SECURE SSO WALL
   
   Mises à jour :
-  - UI MOBILE : Ajout de 'flex-wrap' sur les conteneurs d'îlots pour éviter le débordement horizontal sur petits écrans.
-    Les groupes de bureaux passeront à la ligne si l'écran est trop étroit.
-  - LOGIQUE COULEUR : La disponibilité passe à l'Orange dès qu'il reste 9 places ou moins, et Rouge à 0.
+  - SECURITY : Ajout d'un "Login Overlay" bloquant tout accès à l'UI tant que l'utilisateur n'est pas connecté.
+  - DATA PRIVACY : Les chargements de données (Utilisateurs, Config, Réservations) ne se déclenchent qu'APRÈS l'authentification.
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -195,11 +194,40 @@
         .week-stat-content { display: flex; align-items: center; gap: 2px; color: #0f172a; }
         .week-stat-count { font-size: 0.9rem; font-weight: 800; }
         .week-lock-icon { position: absolute; top: 2px; right: 2px; font-size: 10px; color: #94a3b8; }
+        
+        /* LOGIN OVERLAY ANIMATION */
+        .fade-out { opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
     </style>
 </head>
 <body class="antialiased text-slate-800">
 
-    <div id="app-container" class="w-full max-w-5xl mx-auto relative px-4 pt-6">
+    <!-- LOGIN WALL / OVERLAY -->
+    <div id="login-overlay" class="fixed inset-0 z-[100] bg-slate-50 flex flex-col items-center justify-center p-6 transition-opacity duration-500">
+        <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-sm w-full text-center">
+            <div class="mb-6">
+                <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-none mb-2">Golden Palace</h1>
+                <p class="text-sm text-slate-500 font-medium uppercase tracking-wide">Espace Réservation</p>
+            </div>
+            
+            <div class="w-16 h-1 bg-indigo-600 rounded-full mx-auto mb-8"></div>
+            
+            <p class="text-sm text-slate-600 mb-8 leading-relaxed">
+                Veuillez vous authentifier avec votre compte Microsoft pour accéder aux réservations.
+            </p>
+
+            <button id="main-login-btn" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition transform active:scale-95 flex items-center justify-center gap-3">
+                <span class="material-icons-round">login</span>
+                <span>Connexion SSO</span>
+            </button>
+            
+            <p class="text-[10px] text-slate-400 mt-6 font-medium">
+                Accès sécurisé et restreint au personnel.
+            </p>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTENT (Initially hidden/blurred via JS logic) -->
+    <div id="app-container" class="w-full max-w-5xl mx-auto relative px-4 pt-6 filter blur-sm transition-all duration-500 pointer-events-none">
         
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -210,21 +238,38 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-4">
-                <div class="bg-white border border-slate-200 rounded-lg p-1 flex shadow-sm">
-                    <button id="lang-fr" class="px-3 py-1 text-xs font-bold rounded-md transition">FR</button>
-                    <button id="lang-nl" class="px-3 py-1 text-xs font-bold rounded-md transition">NL</button>
-                    <button id="lang-en" class="px-3 py-1 text-xs font-bold rounded-md transition">EN</button>
-                </div>
-                <div class="flex items-center">
-                    <label for="admin-mode-toggle" class="flex items-center cursor-pointer">
-                        <div class="relative">
-                            <input type="checkbox" id="admin-mode-toggle" class="sr-only">
-                            <div class="block bg-slate-200 w-10 h-6 rounded-full transition-colors duration-300 ease-in-out" id="toggle-bg"></div>
-                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out shadow-sm"></div>
+            <div class="flex flex-col md:flex-row items-end md:items-center gap-4">
+                
+                <!-- USER INFO HEADER AREA -->
+                <div id="auth-section" class="flex items-center gap-3 order-first md:order-none opacity-0 transition-opacity duration-300">
+                    <div id="user-logged-in" class="flex items-center gap-2 bg-white border border-slate-200 p-1 pr-3 rounded-full shadow-sm">
+                        <div id="user-avatar" class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs border border-indigo-200 uppercase">U</div>
+                        <div class="flex flex-col">
+                            <span id="user-display-name" class="text-[10px] font-bold text-slate-700 leading-tight">User</span>
+                            <span class="text-[9px] text-green-500 font-bold leading-tight">Connecté</span>
                         </div>
-                        <div class="ml-3 text-xs font-bold text-slate-400 uppercase tracking-wide" data-i18n="admin_mode">Admin</div>
-                    </label>
+                        <button id="logout-btn" class="text-slate-400 hover:text-red-500 transition ml-2" title="Déconnexion">
+                            <span class="material-icons-round text-sm">logout</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <div class="bg-white border border-slate-200 rounded-lg p-1 flex shadow-sm">
+                        <button id="lang-fr" class="px-3 py-1 text-xs font-bold rounded-md transition">FR</button>
+                        <button id="lang-nl" class="px-3 py-1 text-xs font-bold rounded-md transition">NL</button>
+                        <button id="lang-en" class="px-3 py-1 text-xs font-bold rounded-md transition">EN</button>
+                    </div>
+                    <div class="flex items-center">
+                        <label for="admin-mode-toggle" class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" id="admin-mode-toggle" class="sr-only">
+                                <div class="block bg-slate-200 w-10 h-6 rounded-full transition-colors duration-300 ease-in-out" id="toggle-bg"></div>
+                                <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out shadow-sm"></div>
+                            </div>
+                            <div class="ml-3 text-xs font-bold text-slate-400 uppercase tracking-wide" data-i18n="admin_mode">Admin</div>
+                        </label>
+                    </div>
                 </div>
             </div>
         </header>
@@ -330,8 +375,8 @@
                             </div>
                         </div>
 
-                         <!-- WEEKLY AVAILABILITY WIDGET -->
-                         <div>
+                          <!-- WEEKLY AVAILABILITY WIDGET -->
+                          <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="week_availability">Disponibilités Semaine</label>
                             <div id="weekly-availability-container" class="grid grid-cols-5 gap-2">
                                 <!-- Generated by JS -->
@@ -396,8 +441,8 @@
                     </div>
                 </div>
                 <div class="mt-6 pt-6 border-t border-slate-200">
-                     <p class="text-[10px] font-bold text-slate-400 uppercase mb-3" data-i18n="legend_dept">Départements</p>
-                     <div class="flex flex-wrap gap-2" id="legend-dept-container"></div>
+                      <p class="text-[10px] font-bold text-slate-400 uppercase mb-3" data-i18n="legend_dept">Départements</p>
+                      <div class="flex flex-wrap gap-2" id="legend-dept-container"></div>
                 </div>
             </div>
         </section>
@@ -446,7 +491,7 @@
     <!-- Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged, OAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // 1. CONFIG
@@ -464,9 +509,9 @@
 
         // 2. CONSTANTS
         const TRANSLATIONS = {
-            fr: { main_title: "Golden Palace - Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Configuration Admin", add_user: "Ajouter Utilisateur", fixed_rules: "Règles Fixes", add: "Ajouter", disable_desk: "Désactiver Bureau", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", select_profile: "Sélectionnez votre profil (Étape 1)", delete_confirm: "Supprimer ?", choose_placeholder: "Choisir...", all_days: "Tous les jours (L-V)", blocked_status: "Bloqué", duplicate_fixed: "Erreur: Cet utilisateur a déjà une place fixe ce jour-là", week_availability: "Disponibilités Semaine", booking_settings: "Paramètres Réservation", save_settings: "Sauvegarder", locked_date: "Date verrouillée (passée ou heure limite atteinte)" },
-            nl: { main_title: "Golden Palace - Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Gebruiker Toevoegen", fixed_rules: "Vaste Regels", add: "Toevoegen", disable_desk: "Bureau Blokkeren", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", select_profile: "Selecteer uw profiel (Stap 1)", delete_confirm: "Verwijderen ?", choose_placeholder: "Kies...", all_days: "Alle dagen (M-V)", blocked_status: "Geblokkeerd", duplicate_fixed: "Fout: Deze gebruiker heeft al een vaste plaats op deze dag", week_availability: "Beschikbaarheid Week", booking_settings: "Boekingsinstellingen", save_settings: "Opslaan", locked_date: "Datum vergrendeld" },
-            en: { main_title: "Golden Palace - Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "Add User", fixed_rules: "Fixed Rules", add: "Add", disable_desk: "Disable Desk", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", select_profile: "Select your profile (Step 1)", delete_confirm: "Delete ?", choose_placeholder: "Choose...", all_days: "All days (M-F)", blocked_status: "Blocked", duplicate_fixed: "Error: This user already has a fixed seat on that day", week_availability: "Week Availability", booking_settings: "Booking Settings", save_settings: "Save", locked_date: "Date locked" }
+            fr: { main_title: "Golden Palace - Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Configuration Admin", add_user: "Ajouter Utilisateur", fixed_rules: "Règles Fixes", add: "Ajouter", disable_desk: "Désactiver Bureau", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", select_profile: "Sélectionnez votre profil (Étape 1)", delete_confirm: "Supprimer ?", choose_placeholder: "Choisir...", all_days: "Tous les jours (L-V)", blocked_status: "Bloqué", duplicate_fixed: "Erreur: Cet utilisateur a déjà une place fixe ce jour-là", week_availability: "Disponibilités Semaine", booking_settings: "Paramètres Réservation", save_settings: "Sauvegarder", locked_date: "Date verrouillée (passée ou heure limite atteinte)", login_sso: "Connexion", logout: "Déconnexion" },
+            nl: { main_title: "Golden Palace - Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Gebruiker Toevoegen", fixed_rules: "Vaste Regels", add: "Toevoegen", disable_desk: "Bureau Blokkeren", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", select_profile: "Selecteer uw profiel (Stap 1)", delete_confirm: "Verwijderen ?", choose_placeholder: "Kies...", all_days: "Alle dagen (M-V)", blocked_status: "Geblokkeerd", duplicate_fixed: "Fout: Deze gebruiker heeft al een vaste plaats op deze dag", week_availability: "Beschikbaarheid Week", booking_settings: "Boekingsinstellingen", save_settings: "Opslaan", locked_date: "Datum vergrendeld", login_sso: "Inloggen", logout: "Afmelden" },
+            en: { main_title: "Golden Palace - Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "Add User", fixed_rules: "Fixed Rules", add: "Add", disable_desk: "Disable Desk", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", select_profile: "Select your profile (Step 1)", delete_confirm: "Delete ?", choose_placeholder: "Choose...", all_days: "All days (M-F)", blocked_status: "Blocked", duplicate_fixed: "Error: This user already has a fixed seat on that day", week_availability: "Week Availability", booking_settings: "Booking Settings", save_settings: "Save", locked_date: "Date locked", login_sso: "Login", logout: "Logout" }
         };
 
         const DEPT_COLORS = {
@@ -506,6 +551,13 @@
         let isAdminMode = false;
         let currentLang = 'fr';
         let bookingRules = { cutoffHour: 5, dayOffset: 0 };
+
+        // --- SSO Provider Setup ---
+        const microsoftProvider = new OAuthProvider('microsoft.com');
+        microsoftProvider.setCustomParameters({
+            tenant: '518c8340-2cc8-4163-a985-4fc7f1040521', // Azure Tenant ID
+            prompt: 'select_account'
+        });
 
         // --- 4. HELPERS ---
         function t(key) { return TRANSLATIONS[currentLang][key] || key; }
@@ -623,7 +675,6 @@
                  const available = Math.max(0, totalCapacity - occupied);
                  const isLocked = isDateLocked(dateStr);
                  
-                 // MODIFIED COLOR LOGIC
                  let colorClass;
                  if (available === 0) {
                      colorClass = 'text-red-500';
@@ -938,7 +989,19 @@
                 updateGlobalState(); 
             }); 
         }
-        function loadUsers() { onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/users`), (s) => { if(s.exists()) { const data = s.data(); try { usersData = JSON.parse(data.usersData || '{}'); } catch(e) { usersData = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA)); } renderAdminSelectors(); } else { saveUsers(); } if(isAdminMode) renderAdminLists(); }); }
+        function loadUsers() { 
+            onSnapshot(doc(db, `/artifacts/${appId}/public/data/app_config/users`), (s) => { 
+                if(s.exists()) { 
+                    const data = s.data(); 
+                    try { usersData = JSON.parse(data.usersData || '{}'); } catch(e) { usersData = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA)); } renderAdminSelectors(); 
+                    
+                    // IF LOGGED IN, RETRY AUTO SELECT AFTER LOADING USERS
+                    if(auth.currentUser) autoSelectProfile(auth.currentUser.displayName);
+                    
+                } else { saveUsers(); } 
+                if(isAdminMode) renderAdminLists(); 
+            }); 
+        }
 
         function initUserSelector() { renderAdminSelectors(); }
 
@@ -982,6 +1045,38 @@
              document.getElementById('admin-day-select').onchange = renderAdminLists;
         }
 
+        // --- AUTH LOGIC ---
+        async function loginSSO() {
+            try {
+                await signInWithPopup(auth, microsoftProvider);
+                toast("Connexion réussie", "success");
+            } catch (error) {
+                console.error("Erreur SSO:", error);
+                toast("Erreur de connexion SSO: " + error.message, "error");
+            }
+        }
+        
+        function autoSelectProfile(name) {
+            if (!name) return;
+            const select = document.getElementById('user-select');
+            // Try exact match first, then partial
+            for (let i = 0; i < select.options.length; i++) {
+                if (name.toLowerCase() === select.options[i].text.toLowerCase()) {
+                    select.selectedIndex = i;
+                    select.dispatchEvent(new Event('change'));
+                    return;
+                }
+            }
+            // Partial Match
+             for (let i = 0; i < select.options.length; i++) {
+                if (name.toLowerCase().includes(select.options[i].text.toLowerCase()) || select.options[i].text.toLowerCase().includes(name.toLowerCase())) {
+                    select.selectedIndex = i;
+                    select.dispatchEvent(new Event('change'));
+                    return;
+                }
+            }
+        }
+
         function setupUIListeners() {
             const toggle = document.getElementById('admin-mode-toggle'); const bg = document.getElementById('toggle-bg'); const dot = document.querySelector('.dot');
             toggle.addEventListener('change', (e) => {
@@ -999,6 +1094,10 @@
             document.getElementById('quick-cancel-btn').onclick = cancelMyReservation;
             document.getElementById('confirm-reservation-btn').onclick = confirmReservation;
             document.getElementById('admin-delete-btn').onclick = adminDelete;
+            
+            // AUTH LISTENERS - MOVED TO OVERLAY BUTTON
+            document.getElementById('main-login-btn').onclick = loginSSO;
+            document.getElementById('logout-btn').onclick = () => signOut(auth);
 
             initAdminActions();
         }
@@ -1017,11 +1116,48 @@
             
             initTranslationsAndUI();
             
-            loadConfig();
-            loadUsers();
+            // REMOVED INITIAL DATA LOADING - WAIT FOR AUTH
+            // loadConfig();
+            // loadUsers();
             
-            try { await signInAnonymously(auth); } catch (e) {}
-            onAuthStateChanged(auth, (u) => { if(u) { userId = u.uid; listenReservations(); } });
+            // Replaces pure anonymous login with Auth state listener
+            onAuthStateChanged(auth, (user) => {
+                const overlay = document.getElementById('login-overlay');
+                const appContainer = document.getElementById('app-container');
+                const userArea = document.getElementById('user-logged-in');
+                const authSection = document.getElementById('auth-section');
+                const displayName = document.getElementById('user-display-name');
+                const avatar = document.getElementById('user-avatar');
+
+                if(user) {
+                    userId = user.uid;
+                    
+                    // UNLOCK UI
+                    overlay.classList.add('fade-out'); // triggers CSS transition
+                    setTimeout(() => { overlay.classList.add('hidden'); }, 500); // Wait for transition
+                    
+                    appContainer.classList.remove('blur-sm', 'pointer-events-none');
+                    authSection.classList.remove('opacity-0');
+
+                    // LOAD DATA NOW
+                    loadConfig();
+                    loadUsers();
+                    listenReservations();
+                    
+                    // UI Update
+                    const name = user.displayName || user.email || 'User';
+                    displayName.textContent = name;
+                    avatar.textContent = name.charAt(0);
+                    // Defer auto-select slightly to allow users list to load
+                    setTimeout(() => autoSelectProfile(name), 1000); 
+                } else {
+                     // LOCK UI
+                     userId = null;
+                     overlay.classList.remove('hidden', 'fade-out');
+                     appContainer.classList.add('blur-sm', 'pointer-events-none');
+                     authSection.classList.add('opacity-0');
+                }
+            });
         }
         window.onload = init;
     </script>
