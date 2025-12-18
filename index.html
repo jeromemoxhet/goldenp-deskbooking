@@ -1,11 +1,11 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : MULTILINGUAL LOGIN
+  Version : USER EDITING FEATURE
   
   Mises à jour :
-  - UX : Ajout d'un sélecteur de langue (FR/NL/EN) directement sur l'écran de connexion (Overlay).
-  - I18N : Traduction complète des textes de l'écran de connexion.
-  - PERSISTENCE : Le choix de langue sur le login est conservé une fois connecté.
+  - ADMIN : Ajout de la fonctionnalité "Éditer un utilisateur".
+  - LOGIC : Migration automatique des réservations et places fixes lors du changement de nom/département.
+  - UI : Boutons Modifier/Annuler dans le panneau admin.
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -144,6 +144,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 4px;
         }
         .admin-button-group button {
             height: 100%;
@@ -217,7 +218,7 @@
             <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-24 mx-auto mb-8 object-contain">
             
             <div class="mb-8">
-                <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-none uppercase" data-i18n="login_title">Espace Réservation de Sièges</h1>
+                <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-tight uppercase" data-i18n="login_title">Espace Réservation de Sièges</h1>
             </div>
             
             <!-- GOLDEN BAR -->
@@ -249,7 +250,7 @@
                 <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-16 w-auto object-contain hidden md:block">
                 
                 <div>
-                    <h1 class="text-3xl font-black text-slate-800 tracking-tight leading-none" data-i18n="main_title">Réservation de sièges</h1>
+                    <h1 class="text-3xl font-black text-slate-800 tracking-tight leading-tight" data-i18n="main_title">Réservation de sièges</h1>
                     <p class="text-sm text-slate-500 font-medium mt-1" data-i18n="subtitle">Paysager - Croix de guerre 120</p>
                 </div>
             </div>
@@ -312,14 +313,15 @@
                 <span class="material-icons-round text-lg">admin_panel_settings</span> <span data-i18n="admin_config">Configuration Admin</span>
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <!-- Add User -->
+                <!-- Add/Edit User -->
                 <div class="md:col-span-1">
-                    <label class="block text-xs font-bold text-red-400 uppercase mb-1" data-i18n="add_user">Ajouter Utilisateur</label>
+                    <label class="block text-xs font-bold text-red-400 uppercase mb-1" id="admin-user-action-label" data-i18n="add_user">Ajouter Utilisateur</label>
                     <div class="flex gap-1 mb-2">
-                        <input id="admin-new-user-name" placeholder="Nom" class="w-full p-2 text-xs border border-red-200 rounded focus:ring-red-500">
+                        <input id="admin-new-user-name" placeholder="Prénom Nom" class="w-full p-2 text-xs border border-red-200 rounded focus:ring-red-500">
                         <select id="admin-new-user-dept" class="w-full p-2 text-xs border border-red-200 rounded bg-white focus:ring-red-500"></select>
-                        <div class="admin-button-group w-1/2">
+                        <div class="admin-button-group w-1/2 flex flex-col gap-1">
                             <button id="admin-add-user-btn" class="bg-slate-700 text-white px-3 py-2 rounded text-xs font-bold hover:bg-slate-800 transition shadow-sm" data-i18n="add">Ajouter</button>
+                            <button id="admin-cancel-edit-btn" class="hidden bg-slate-300 text-slate-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-400 transition" data-i18n="cancel">Annuler</button>
                         </div>
                     </div>
                     <div id="admin-users-list" class="h-24 overflow-y-auto bg-white rounded border border-red-100 p-1 space-y-1"></div>
@@ -513,7 +515,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, onAuthStateChanged, OAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, deleteDoc, updateDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // 1. CONFIG
         const appId = 'desk-booking-app'; 
@@ -530,9 +532,9 @@
 
         // 2. CONSTANTS
         const TRANSLATIONS = {
-            fr: { main_title: "Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Configuration Admin", add_user: "Ajouter Utilisateur", fixed_rules: "Règles Fixes", add: "Ajouter", disable_desk: "Désactiver Bureau", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", select_profile: "Sélectionnez votre profil (Étape 1)", delete_confirm: "Supprimer ?", choose_placeholder: "Choisir...", all_days: "Tous les jours (L-V)", blocked_status: "Bloqué", duplicate_fixed: "Erreur: Cet utilisateur a déjà une place fixe ce jour-là", week_availability: "Disponibilités Semaine", booking_settings: "Paramètres Réservation", save_settings: "Sauvegarder", locked_date: "Date verrouillée (passée ou heure limite atteinte)", login_sso: "Connexion SSO", logout: "Déconnexion", login_title: "Espace Réservation de Sièges", login_intro: "Veuillez vous authentifier avec votre compte Microsoft pour accéder aux réservations.", login_btn_text: "Connexion SSO", login_secure: "Accès sécurisé et restreint au personnel.", status_connected: "Connecté" },
-            nl: { main_title: "Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Gebruiker Toevoegen", fixed_rules: "Vaste Regels", add: "Toevoegen", disable_desk: "Bureau Blokkeren", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", select_profile: "Selecteer uw profiel (Stap 1)", delete_confirm: "Verwijderen ?", choose_placeholder: "Kies...", all_days: "Alle dagen (M-V)", blocked_status: "Geblokkeerd", duplicate_fixed: "Fout: Deze gebruiker heeft al een vaste plaats op deze dag", week_availability: "Beschikbaarheid Week", booking_settings: "Boekingsinstellingen", save_settings: "Opslaan", locked_date: "Datum vergrendeld", login_sso: "Inloggen", logout: "Afmelden", login_title: "Stoelreservering Zone", login_intro: "Gelieve u te authenticeren met uw Microsoft-account om toegang te krijgen tot de reserveringen.", login_btn_text: "SSO Aanmelding", login_secure: "Beveiligde toegang beperkt tot personeel.", status_connected: "Verbonden" },
-            en: { main_title: "Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "Add User", fixed_rules: "Fixed Rules", add: "Add", disable_desk: "Disable Desk", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", select_profile: "Select your profile (Step 1)", delete_confirm: "Delete ?", choose_placeholder: "Choose...", all_days: "All days (M-F)", blocked_status: "Blocked", duplicate_fixed: "Error: This user already has a fixed seat on that day", week_availability: "Week Availability", booking_settings: "Booking Settings", save_settings: "Save", locked_date: "Date locked", login_sso: "Login", logout: "Logout", login_title: "Seat Reservation Area", login_intro: "Please authenticate with your Microsoft account to access reservations.", login_btn_text: "SSO Login", login_secure: "Secure access restricted to personnel.", status_connected: "Connected" }
+            fr: { main_title: "Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Configuration Admin", add_user: "Ajouter Utilisateur", edit_user: "Modifier Utilisateur", update: "Mettre à jour", fixed_rules: "Règles Fixes", add: "Ajouter", disable_desk: "Désactiver Bureau", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", select_profile: "Sélectionnez votre profil (Étape 1)", delete_confirm: "Supprimer ?", choose_placeholder: "Choisir...", all_days: "Tous les jours (L-V)", blocked_status: "Bloqué", duplicate_fixed: "Erreur: Cet utilisateur a déjà une place fixe ce jour-là", week_availability: "Disponibilités Semaine", booking_settings: "Paramètres Réservation", save_settings: "Sauvegarder", locked_date: "Date verrouillée (passée ou heure limite atteinte)", login_sso: "Connexion SSO", logout: "Déconnexion", login_title: "Espace Réservation de Sièges", login_intro: "Veuillez vous authentifier avec votre compte Microsoft pour accéder aux réservations.", login_btn_text: "Connexion SSO", login_secure: "Accès sécurisé et restreint au personnel.", status_connected: "Connecté" },
+            nl: { main_title: "Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Gebruiker Toevoegen", edit_user: "Gebruiker Bewerken", update: "Updaten", fixed_rules: "Vaste Regels", add: "Toevoegen", disable_desk: "Bureau Blokkeren", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", select_profile: "Selecteer uw profiel (Stap 1)", delete_confirm: "Verwijderen ?", choose_placeholder: "Kies...", all_days: "Alle dagen (M-V)", blocked_status: "Geblokkeerd", duplicate_fixed: "Fout: Deze gebruiker heeft al een vaste plaats op deze dag", week_availability: "Beschikbaarheid Week", booking_settings: "Boekingsinstellingen", save_settings: "Opslaan", locked_date: "Datum vergrendeld", login_sso: "Inloggen", logout: "Afmelden", login_title: "Stoelreservering Zone", login_intro: "Gelieve u te authenticeren met uw Microsoft-account om toegang te krijgen tot de reserveringen.", login_btn_text: "SSO Aanmelding", login_secure: "Beveiligde toegang beperkt tot personeel.", status_connected: "Verbonden" },
+            en: { main_title: "Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "Add User", edit_user: "Edit User", update: "Update", fixed_rules: "Fixed Rules", add: "Add", disable_desk: "Disable Desk", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", select_profile: "Select your profile (Step 1)", delete_confirm: "Delete ?", choose_placeholder: "Choose...", all_days: "All days (M-F)", blocked_status: "Blocked", duplicate_fixed: "Error: This user already has a fixed seat on that day", week_availability: "Week Availability", booking_settings: "Booking Settings", save_settings: "Save", locked_date: "Date locked", login_sso: "Login", logout: "Logout", login_title: "Seat Reservation Area", login_intro: "Please authenticate with your Microsoft account to access reservations.", login_btn_text: "SSO Login", login_secure: "Secure access restricted to personnel.", status_connected: "Connected" }
         };
 
         const DEPT_COLORS = {
@@ -541,10 +543,10 @@
             'Landbased': 'bg-lime-500', 'Corporate': 'bg-pink-500'
         };
         const DEFAULT_USERS_DATA = {
-            'CRM': ['Charlotte', 'Killian', 'Maxime'], 'SoMe': ['Doha', 'Stella', 'Juliette', 'Chanel'],
-            'Design Studio': ['Eric', 'Minh', 'Julien', 'Kelly', 'Laure', 'Ben', 'Jerome', 'Lucas', 'Héloise'],
-            'Digital Marketing': ['Rollin', 'Diane'], 'Landbased': ['Serge', 'Patricia', 'Marco', 'Alix'],
-            'Corporate': ['Alison', 'Jennifer'], 'Content': ['Gaëlle', 'Marthijn', 'Wies'],
+            'CRM': ['Charlotte Nom', 'Killian Nom', 'Maxime Nom'], 'SoMe': ['Doha Nom', 'Stella Nom', 'Juliette Nom', 'Chanel Nom'],
+            'Design Studio': ['Eric Nom', 'Minh Nom', 'Julien Nom', 'Kelly Nom', 'Laure Nom', 'Ben Nom', 'Jerome Nom', 'Lucas Nom', 'Héloise Nom'],
+            'Digital Marketing': ['Rollin Nom', 'Diane Nom'], 'Landbased': ['Serge Nom', 'Patricia Nom', 'Marco Nom', 'Alix Nom'],
+            'Corporate': ['Alison Nom', 'Jennifer Nom'], 'Content': ['Gaëlle Nom', 'Marthijn Nom', 'Wies Nom'],
             'Sports Betting': ['Sports Betting User 1', 'Sports Betting User 2']
         };
         const DESK_LAYOUT = {
@@ -572,19 +574,15 @@
         let isAdminMode = false;
         let currentLang = 'fr';
         let bookingRules = { cutoffHour: 5, dayOffset: 0 };
+        // ADMIN EDIT STATE
+        let editingUserState = null;
 
         // --- SSO Provider Setup ---
         const microsoftProvider = new OAuthProvider('microsoft.com');
-        
-        // Configuration spécifique pour Azure AD
         microsoftProvider.setCustomParameters({
-            // ID du locataire (Tenant ID) fourni par l'IT
             tenant: '518c8340-2cc8-4163-a985-4fc7f1040521', 
-            // Force la sélection de compte pour éviter les boucles de connexion automatique
             prompt: 'select_account' 
         });
-        
-        // Ajout des scopes standards pour lire le profil utilisateur
         microsoftProvider.addScope('openid');
         microsoftProvider.addScope('profile');
         microsoftProvider.addScope('email');
@@ -626,55 +624,28 @@
             }
             return week;
         }
+        function formatName(fullName) {
+            if(!fullName) return '';
+            const parts = fullName.trim().split(' ');
+            if(parts.length > 1) { return `${parts[0]} ${parts[1].charAt(0)}.`; }
+            return parts[0];
+        }
 
         function initTranslations() {
             const update = (lang) => {
                 currentLang = lang;
-                
-                // Update Main Header Buttons
-                ['fr','nl','en'].forEach(l => {
-                    const btn = document.getElementById(`lang-${l}`);
-                    // Removed button presence check for safety if header is hidden
-                    if(btn) btn.className = (lang === l) ? "px-3 py-1 text-xs font-bold rounded-md bg-slate-100 text-slate-700 transition lang-btn-active" : "px-3 py-1 text-xs font-bold rounded-md text-slate-400 hover:bg-slate-50 transition lang-btn-inactive";
-                });
-
-                // Update Overlay Buttons
-                ['fr','nl','en'].forEach(l => {
-                    const btn = document.getElementById(`overlay-lang-${l}`);
-                    if(btn) {
-                        // Golden Active State for overlay
-                        if(lang === l) {
-                            btn.className = "text-[10px] font-bold px-2 py-1 rounded bg-[#fff8e1] text-[#c39400] transition";
-                        } else {
-                            btn.className = "text-[10px] font-bold px-2 py-1 rounded hover:bg-slate-100 text-slate-400 transition";
-                        }
-                    }
-                });
-
-                document.querySelectorAll('[data-i18n]').forEach(el => {
-                    const key = el.getAttribute('data-i18n');
-                    if(TRANSLATIONS[lang][key]) el.textContent = TRANSLATIONS[lang][key];
-                });
-                updateDayLabel(currentDateString);
-                updateStickyBar();
-                updateUserInfoCard();
-                populateAdminDaySelect(); 
-                renderAdminLists(); 
-                renderLegend();
-                const userSel = document.getElementById('user-select');
-                if(userSel && userSel.options.length > 0) userSel.options[0].textContent = t('choose_placeholder');
+                ['fr','nl','en'].forEach(l => { const btn = document.getElementById(`lang-${l}`); if(btn) btn.className = (lang === l) ? "px-3 py-1 text-xs font-bold rounded-md bg-slate-100 text-slate-700 transition lang-btn-active" : "px-3 py-1 text-xs font-bold rounded-md text-slate-400 hover:bg-slate-50 transition lang-btn-inactive"; });
+                ['fr','nl','en'].forEach(l => { const btn = document.getElementById(`overlay-lang-${l}`); if(btn) { if(lang === l) { btn.className = "text-[10px] font-bold px-2 py-1 rounded bg-[#fff8e1] text-[#c39400] transition"; } else { btn.className = "text-[10px] font-bold px-2 py-1 rounded hover:bg-slate-100 text-slate-400 transition"; } } });
+                document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if(TRANSLATIONS[lang][key]) el.textContent = TRANSLATIONS[lang][key]; });
+                updateDayLabel(currentDateString); updateStickyBar(); updateUserInfoCard(); populateAdminDaySelect(); renderAdminLists(); renderLegend();
+                const userSel = document.getElementById('user-select'); if(userSel && userSel.options.length > 0) userSel.options[0].textContent = t('choose_placeholder');
             };
-            
-            // Listeners for Main Header
             const btnFr = document.getElementById('lang-fr'); if(btnFr) btnFr.onclick = () => update('fr');
             const btnNl = document.getElementById('lang-nl'); if(btnNl) btnNl.onclick = () => update('nl');
             const btnEn = document.getElementById('lang-en'); if(btnEn) btnEn.onclick = () => update('en');
-
-            // Listeners for Overlay
             const ovFr = document.getElementById('overlay-lang-fr'); if(ovFr) ovFr.onclick = () => update('fr');
             const ovNl = document.getElementById('overlay-lang-nl'); if(ovNl) ovNl.onclick = () => update('nl');
             const ovEn = document.getElementById('overlay-lang-en'); if(ovEn) ovEn.onclick = () => update('en');
-
             update('fr');
         }
 
@@ -682,14 +653,8 @@
         function isDateLocked(dateStr) {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
-            
             if (dateStr < todayStr) return true;
-            
-            if (dateStr === todayStr) {
-                if (today.getHours() >= parseInt(bookingRules.cutoffHour)) {
-                    return true;
-                }
-            }
+            if (dateStr === todayStr) { if (today.getHours() >= parseInt(bookingRules.cutoffHour)) { return true; } }
             return false;
         }
 
@@ -708,10 +673,8 @@
             recalculateMyStatus(fixedToday);
             renderWeeklyStats();
             renderMap(); updateStickyBar(); updateUserInfoCard();
-            
             document.getElementById('admin-cutoff-hour').value = bookingRules.cutoffHour;
             document.getElementById('admin-day-offset').value = bookingRules.dayOffset;
-            
             if(isAdminMode) renderAdminLists();
         }
 
@@ -730,16 +693,8 @@
                  const occupied = reservedSet.size;
                  const available = Math.max(0, totalCapacity - occupied);
                  const isLocked = isDateLocked(dateStr);
-                 
                  let colorClass;
-                 if (available === 0) {
-                     colorClass = 'text-red-500';
-                 } else if (available <= 9) {
-                     colorClass = 'text-orange-500';
-                 } else {
-                     colorClass = 'text-green-600';
-                 }
-
+                 if (available === 0) { colorClass = 'text-red-500'; } else if (available <= 9) { colorClass = 'text-orange-500'; } else { colorClass = 'text-green-600'; }
                  let bgClass = isSelected ? 'active' : '';
                  if (isLocked) bgClass += ' locked';
                  const el = document.createElement('div'); el.className = `week-stat-card ${bgClass}`;
@@ -787,7 +742,7 @@
                     overlay = `<div class="floating-badge bg-slate-700 text-white border-slate-600"><span class="material-icons-round text-sm">block</span></div>`;
                 } else if(isFixed) {
                     classes += "bg-slate-100 border-2 border-slate-300 text-slate-500 shadow-sm";
-                    const name = res ? res.userName.split(' ')[0] : '';
+                    const name = res ? formatName(res.userName) : '';
                     content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-slate-600 font-bold">${name}</span>`;
                     overlay = `<div class="floating-badge bg-slate-800 text-white"><span class="material-icons-round text-[12px]">lock</span></div>`;
                     const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
@@ -798,7 +753,7 @@
                     content += `<span class="text-[10px] font-bold text-blue-600 leading-tight">${t('my_res')}</span>`;
                 } else if(isTaken) {
                     classes += "bg-red-50 border-2 border-red-200 text-red-400 shadow-sm";
-                    const name = res.userName.split(' ')[0];
+                    const name = formatName(res.userName);
                     content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-red-500">${name}</span>`;
                     const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
                     bottomStrip = `<div class="absolute bottom-0 left-0 right-0 h-1.5 ${color}"></div>`;
@@ -836,22 +791,6 @@
             });
             [DESK_LAYOUT.DESIGN_STUDIO_1, DESK_LAYOUT.DESIGN_STUDIO_2].forEach(i => des.appendChild(renderIsland(i, create)));
             [DESK_LAYOUT.ONLINE_F, DESK_LAYOUT.ONLINE_G].forEach(i => onl.appendChild(renderIsland(i, create)));
-        }
-        function renderIsland(data, createFn) {
-            const div = document.createElement('div'); div.className = "flex flex-col items-center flex-1 p-2 bg-white rounded-xl";
-            const grid = document.createElement('div'); grid.className = "grid gap-y-2 gap-x-4"; grid.style.gridTemplateColumns = "1fr 8px 1fr"; 
-            for(let i=0; i<4; i++) {
-                const d1 = createFn(data.col1[i]); d1.style.justifySelf="end";
-                const d2 = createFn(data.col2[i]); d2.style.justifySelf="start";
-                grid.append(d1);
-                if(i===0) { 
-                    const bar = document.createElement('div'); bar.className="bg-slate-400 rounded-full w-2 h-full row-span-4 opacity-80 border border-slate-500"; 
-                    bar.style.gridColumn="2"; bar.style.gridRow="1 / span 4";
-                    grid.append(bar);
-                }
-                grid.append(d2);
-            }
-            div.appendChild(grid); return div;
         }
         function updateStickyBar() {
             const def = document.getElementById('default-bar-status'); const sel = document.getElementById('selection-bar-status'); const myTxt = document.getElementById('my-status-text');
@@ -908,12 +847,35 @@
                  if(usersData[dp].length === 0) return;
                  const header = document.createElement('div'); header.className = "text-[10px] font-bold text-slate-400 mt-2 mb-1 uppercase bg-slate-50 p-1 rounded"; header.textContent = dp; uList.appendChild(header);
                  usersData[dp].sort().forEach(n => {
-                     const d=document.createElement('div'); d.className="flex justify-between px-2 py-1 bg-white text-[10px] border rounded mb-1";
-                     d.innerHTML=`${n} <button class="text-red-500 font-bold hover:bg-red-50 rounded px-1">×</button>`;
-                     d.querySelector('button').onclick=async()=>{ if(confirm(t('delete_confirm'))) { usersData[dp]=usersData[dp].filter(x=>x!==n); await saveUsers(); }};
+                     const d=document.createElement('div'); d.className="flex justify-between items-center px-2 py-1 bg-white text-[10px] border rounded mb-1";
+                     d.innerHTML=`<span>${n}</span> <div class="flex gap-1"><button class="edit-user-btn text-indigo-500 font-bold hover:bg-indigo-50 rounded px-1" data-name="${n}" data-dept="${dp}"><span class="material-icons-round text-xs">edit</span></button><button class="delete-user-btn text-red-500 font-bold hover:bg-red-50 rounded px-1" data-name="${n}" data-dept="${dp}">×</button></div>`;
                      uList.appendChild(d);
                  });
              });
+             // Add Listeners
+             document.querySelectorAll('.delete-user-btn').forEach(b => {
+                 b.onclick = async (e) => {
+                     const n = e.currentTarget.getAttribute('data-name');
+                     const dp = e.currentTarget.getAttribute('data-dept');
+                     if(confirm(t('delete_confirm'))) { usersData[dp]=usersData[dp].filter(x=>x!==n); if(usersData[dp].length===0) delete usersData[dp]; await saveUsers(); }
+                 }
+             });
+             document.querySelectorAll('.edit-user-btn').forEach(b => {
+                 b.onclick = (e) => {
+                     const n = e.currentTarget.getAttribute('data-name');
+                     const dp = e.currentTarget.getAttribute('data-dept');
+                     // Enter Edit Mode
+                     editingUserState = { name: n, dept: dp };
+                     document.getElementById('admin-new-user-name').value = n;
+                     document.getElementById('admin-new-user-dept').value = dp;
+                     document.getElementById('admin-add-user-btn').textContent = t('update');
+                     document.getElementById('admin-add-user-btn').classList.remove('bg-slate-700');
+                     document.getElementById('admin-add-user-btn').classList.add('bg-[#c39400]'); // Golden
+                     document.getElementById('admin-user-action-label').textContent = t('edit_user');
+                     document.getElementById('admin-cancel-edit-btn').classList.remove('hidden');
+                 }
+             });
+
              const rList = document.getElementById('admin-rules-list'); rList.innerHTML="";
              const fDay = document.getElementById('admin-day-select').value;
              const dayNames = t('days');
@@ -1012,6 +974,43 @@
              selectedDeskId = null;
         }
 
+        async function updateUserInDatabase(oldName, oldDept, newName, newDept) {
+            // 1. Update Users List
+            if(usersData[oldDept]) {
+                usersData[oldDept] = usersData[oldDept].filter(n => n !== oldName);
+                if(usersData[oldDept].length === 0) delete usersData[oldDept];
+            }
+            if(!usersData[newDept]) usersData[newDept] = [];
+            usersData[newDept].push(newName);
+            await saveUsers();
+
+            // 2. Update Fixed Assignments
+            let fixedUpdated = false;
+            for(let i=1; i<=5; i++) {
+                const dayRules = fixedAssignmentsData[i];
+                if(dayRules) {
+                    Object.keys(dayRules).forEach(deskId => {
+                        if(dayRules[deskId].userName === oldName) {
+                            dayRules[deskId].userName = newName;
+                            dayRules[deskId].userDepartment = newDept;
+                            fixedUpdated = true;
+                        }
+                    });
+                }
+            }
+            if(fixedUpdated) await saveConfig();
+
+            // 3. Update Reservations (Async)
+            // Note: This does simplistic migration. In a large DB, a cloud function is better.
+            const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("userName", "==", oldName));
+            const snapshot = await getDocs(q);
+            snapshot.forEach(async (d) => {
+                await updateDoc(d.ref, { userName: newName, userDepartment: newDept });
+            });
+            
+            toast("Utilisateur et données mis à jour", "success");
+        }
+
         function enableAdminMode() { isAdminMode = true; document.getElementById('admin-config-panel').classList.remove('hidden'); renderAdminLists(); renderMap(); updateStickyBar(); }
         function disableAdminMode() { isAdminMode = false; document.getElementById('admin-config-panel').classList.add('hidden'); selectedDeskId = null; renderMap(); updateStickyBar(); }
 
@@ -1069,8 +1068,38 @@
              document.getElementById('admin-add-user-btn').onclick = async () => {
                  const n = document.getElementById('admin-new-user-name').value.trim();
                  const dp = document.getElementById('admin-new-user-dept').value;
-                 if(n && dp) { if(!usersData[dp]) usersData[dp] = []; if(!usersData[dp].includes(n)) { usersData[dp].push(n); await saveUsers(); toast("Utilisateur ajouté", "success"); } }
+                 if(n && dp) { 
+                     // Check if Editing
+                     if(editingUserState) {
+                         if(n !== editingUserState.name || dp !== editingUserState.dept) {
+                             await updateUserInDatabase(editingUserState.name, editingUserState.dept, n, dp);
+                         }
+                         // Reset Edit State
+                         editingUserState = null;
+                         document.getElementById('admin-new-user-name').value = '';
+                         document.getElementById('admin-add-user-btn').textContent = t('add');
+                         document.getElementById('admin-add-user-btn').classList.remove('bg-[#c39400]');
+                         document.getElementById('admin-add-user-btn').classList.add('bg-slate-700');
+                         document.getElementById('admin-user-action-label').textContent = t('add_user');
+                         document.getElementById('admin-cancel-edit-btn').classList.add('hidden');
+                     } else {
+                         // Normal Add
+                         if(!usersData[dp]) usersData[dp] = []; 
+                         if(!usersData[dp].includes(n)) { usersData[dp].push(n); await saveUsers(); toast("Utilisateur ajouté", "success"); }
+                     }
+                 }
              };
+             
+             document.getElementById('admin-cancel-edit-btn').onclick = () => {
+                 editingUserState = null;
+                 document.getElementById('admin-new-user-name').value = '';
+                 document.getElementById('admin-add-user-btn').textContent = t('add');
+                 document.getElementById('admin-add-user-btn').classList.remove('bg-[#c39400]');
+                 document.getElementById('admin-add-user-btn').classList.add('bg-slate-700');
+                 document.getElementById('admin-user-action-label').textContent = t('add_user');
+                 document.getElementById('admin-cancel-edit-btn').classList.add('hidden');
+             };
+
              document.getElementById('admin-add-rule-btn').onclick = async () => {
                  const day = document.getElementById('admin-day-select').value;
                  const desk = document.getElementById('admin-desk-select').value;
