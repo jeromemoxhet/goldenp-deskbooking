@@ -1,10 +1,11 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : SECURE SSO WALL
+  Version : SECURE SSO WALL + DOMAIN DEBUG V2
   
   Mises à jour :
-  - SECURITY : Ajout d'un "Login Overlay" bloquant tout accès à l'UI tant que l'utilisateur n'est pas connecté.
-  - DATA PRIVACY : Les chargements de données (Utilisateurs, Config, Réservations) ne se déclenchent qu'APRÈS l'authentification.
+  - ERROR HANDLING : Message d'erreur explicite pour 'auth/unauthorized-domain'.
+                     Affiche les instructions exactes pour ajouter le domaine dans Firebase.
+  - SECURITY : Login Overlay maintenu.
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -554,10 +555,20 @@
 
         // --- SSO Provider Setup ---
         const microsoftProvider = new OAuthProvider('microsoft.com');
+        
+        // Configuration spécifique pour Azure AD
         microsoftProvider.setCustomParameters({
-            tenant: '518c8340-2cc8-4163-a985-4fc7f1040521', // Azure Tenant ID
-            prompt: 'select_account'
+            // ID du locataire (Tenant ID) fourni par l'IT
+            tenant: '518c8340-2cc8-4163-a985-4fc7f1040521', 
+            // Force la sélection de compte pour éviter les boucles de connexion automatique
+            prompt: 'select_account' 
         });
+        
+        // Ajout des scopes standards pour lire le profil utilisateur
+        microsoftProvider.addScope('openid');
+        microsoftProvider.addScope('profile');
+        microsoftProvider.addScope('email');
+        microsoftProvider.addScope('User.Read');
 
         // --- 4. HELPERS ---
         function t(key) { return TRANSLATIONS[currentLang][key] || key; }
@@ -1047,12 +1058,60 @@
 
         // --- AUTH LOGIC ---
         async function loginSSO() {
+            // Vérification basique de l'environnement
+            if (window.location.protocol === 'file:') {
+                alert("Attention : L'authentification ne fonctionne pas en ouvrant le fichier localement (file://). Vous devez utiliser un serveur web local (http://localhost) ou héberger le fichier.");
+                return;
+            }
+
             try {
-                await signInWithPopup(auth, microsoftProvider);
-                toast("Connexion réussie", "success");
+                // Utilisation de signInWithPopup
+                const result = await signInWithPopup(auth, microsoftProvider);
+                // Le résultat contient les infos user et le token
+                const user = result.user;
+                console.log("Connexion réussie :", user);
+                toast("Bienvenue " + (user.displayName || "Utilisateur"), "success");
             } catch (error) {
-                console.error("Erreur SSO:", error);
-                toast("Erreur de connexion SSO: " + error.message, "error");
+                console.error("Erreur SSO détaillée:", error);
+                
+                let errorMsg = "Erreur inconnue.";
+                
+                // Gestion des erreurs courantes Firebase Auth
+                switch (error.code) {
+                    case 'auth/popup-closed-by-user':
+                        errorMsg = "La fenêtre de connexion a été fermée.";
+                        break;
+                    case 'auth/cancelled-popup-request':
+                        errorMsg = "Une demande de connexion est déjà en cours.";
+                        break;
+                    case 'auth/popup-blocked':
+                        errorMsg = "Le navigateur a bloqué la fenêtre pop-up. Veuillez l'autoriser.";
+                        break;
+                    case 'auth/operation-not-allowed':
+                        errorMsg = "Le fournisseur Microsoft n'est pas activé dans la console Firebase.";
+                        break;
+                    case 'auth/unauthorized-domain':
+                        const currentDomain = window.location.hostname;
+                        errorMsg = `DOMAINE NON AUTORISÉ : "${currentDomain}"\n\n` +
+                                   `Pour corriger cela :\n` +
+                                   `1. Allez dans la console Firebase > Authentication > Settings > Authorized domains.\n` +
+                                   `2. Cliquez sur "Ajouter un domaine".\n` +
+                                   `3. Entrez exactement : ${currentDomain}`;
+                        alert(errorMsg); // Force alert for this critical setup error
+                        break;
+                    case 'auth/configuration-not-found':
+                        errorMsg = "La configuration du fournisseur Microsoft semble incomplète dans Firebase.";
+                        break;
+                    default:
+                        errorMsg = error.message;
+                }
+                
+                toast("Erreur : " + errorMsg, "error");
+                
+                // Affiche l'erreur complète dans une alerte pour faciliter le débogage si le toast disparaît trop vite
+                if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/unauthorized-domain') {
+                    alert("Erreur technique : " + error.code + "\n\n" + error.message);
+                }
             }
         }
         
