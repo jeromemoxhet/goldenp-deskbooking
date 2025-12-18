@@ -1,11 +1,11 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : ADMIN UX REDESIGN & MAP FIX
+  Version : SEARCH BAR FIX
   
   Mises à jour :
-  - ADMIN UI : Refonte complète avec navigation latérale, cartes espacées et tableaux lisibles.
-  - ADMIN UX : Regroupement logique (Membres, Bureaux, Paramètres).
-  - BUGFIX : Sécurisation du rendu de la carte (renderMap) pour garantir l'affichage de tous les îlots.
+  - BUGFIX : Activation de la barre de recherche dans l'onglet "Membres & Équipes". 
+             La liste se filtre désormais en temps réel lors de la saisie.
+  - UI : Amélioration visuelle du champ de recherche (icône loupe).
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -145,19 +145,20 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
             color: #64748b;
             font-weight: 600;
             font-size: 0.9rem;
             transition: all 0.2s;
             cursor: pointer;
+            border-left: 4px solid transparent;
         }
         .admin-nav-item:hover { background-color: #f8fafc; color: #334155; }
         .admin-nav-item.active {
-            background-color: #fffbeb;
-            color: #c39400;
+            background-color: #fff1f2; /* Red-ish tint for admin */
+            color: #be123c; /* Red text */
             font-weight: 700;
+            border-left-color: #be123c;
         }
         
         .info-grid-row {
@@ -326,26 +327,40 @@
             </div>
         </div>
 
-        <!-- NEW ADMIN PANEL REDESIGN -->
-        <div id="admin-config-panel" class="hidden mb-8 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+        <!-- NEW ADMIN PANEL REDESIGN (With Red Border) -->
+        <div id="admin-config-panel" class="hidden mb-8 bg-white border-2 border-red-500 rounded-2xl shadow-xl overflow-hidden relative">
+            
+            <!-- ADMIN BANNER -->
+            <div class="bg-red-500 text-white text-xs font-bold text-center py-1 tracking-widest uppercase shadow-sm">
+                Mode Administrateur Actif
+            </div>
+
             <div class="flex flex-col md:flex-row h-full">
                 
                 <!-- SIDEBAR NAVIGATION -->
-                <div class="w-full md:w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col gap-2">
-                    <div class="text-xs font-black text-slate-400 uppercase tracking-wider mb-2 px-2">Menu Administration</div>
-                    <button class="admin-nav-item active" data-tab="users">
-                        <span class="material-icons-round">people</span> <span data-i18n="tab_users">Membres & Équipes</span>
-                    </button>
-                    <button class="admin-nav-item" data-tab="rules">
-                        <span class="material-icons-round">desk</span> <span data-i18n="tab_rules">Gestion des Bureaux</span>
-                    </button>
-                    <button class="admin-nav-item" data-tab="settings">
-                        <span class="material-icons-round">settings</span> <span data-i18n="tab_settings">Paramètres Généraux</span>
-                    </button>
+                <div class="w-full md:w-64 bg-slate-50 border-r border-slate-200 p-0 flex flex-col">
+                    <div class="p-6 border-b border-slate-100">
+                        <div class="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Menu</div>
+                        <div class="text-lg font-bold text-slate-800" data-i18n="admin_config">Administration</div>
+                    </div>
+                    <nav class="flex-1 p-3 space-y-1">
+                        <button class="admin-nav-item active w-full" data-tab="users">
+                            <span class="material-icons-round">people</span> <span data-i18n="tab_users">Membres & Équipes</span>
+                        </button>
+                        <button class="admin-nav-item w-full" data-tab="history">
+                            <span class="material-icons-round">history</span> <span data-i18n="tab_history">Historique & Audit</span>
+                        </button>
+                        <button class="admin-nav-item w-full" data-tab="rules">
+                            <span class="material-icons-round">desk</span> <span data-i18n="tab_rules">Gestion des Bureaux</span>
+                        </button>
+                        <button class="admin-nav-item w-full" data-tab="settings">
+                            <span class="material-icons-round">settings</span> <span data-i18n="tab_settings">Paramètres Généraux</span>
+                        </button>
+                    </nav>
                 </div>
 
                 <!-- CONTENT AREA -->
-                <div class="flex-1 p-6 md:p-8 bg-white min-h-[400px]">
+                <div class="flex-1 p-6 md:p-8 bg-white min-h-[500px]">
                     
                     <!-- TAB 1: USERS -->
                     <div id="admin-tab-users" class="admin-tab-content">
@@ -379,7 +394,10 @@
                             <div class="lg:col-span-2">
                                 <div class="flex justify-between items-center mb-3">
                                     <label class="block text-xs font-bold text-slate-500 uppercase" data-i18n="users_list">Annuaire complet</label>
-                                    <input type="text" id="admin-user-search" placeholder="Rechercher..." class="text-xs p-2 border border-slate-200 rounded-lg w-48 bg-slate-50 focus:bg-white transition">
+                                    <div class="relative">
+                                        <input type="text" id="admin-user-search" placeholder="Rechercher..." class="text-xs p-2 pl-8 border border-slate-200 rounded-lg w-48 bg-slate-50 focus:bg-white transition outline-none focus:ring-2 focus:ring-[#c39400]/20">
+                                        <span class="material-icons-round absolute left-2 top-2 text-slate-400 text-sm">search</span>
+                                    </div>
                                 </div>
                                 <div id="admin-users-list" class="h-96 overflow-y-auto pr-2 space-y-2">
                                     <!-- Populated by JS -->
@@ -388,7 +406,55 @@
                         </div>
                     </div>
 
-                    <!-- TAB 2: RULES & BLOCKING -->
+                    <!-- TAB 2: HISTORY (NEW) -->
+                    <div id="admin-tab-history" class="admin-tab-content hidden">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="tab_history">Historique & Audit</span>
+                        </h3>
+                        
+                        <div class="flex flex-col gap-6">
+                            <!-- Filters -->
+                            <div class="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Utilisateur à vérifier</label>
+                                    <select id="history-user-select" class="w-full p-2 text-sm border border-slate-300 rounded-lg">
+                                        <option value="" disabled selected>Choisir un membre...</option>
+                                    </select>
+                                </div>
+                                <div class="w-full md:w-48">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Mois</label>
+                                    <input type="month" id="history-month-select" class="w-full p-2 text-sm border border-slate-300 rounded-lg">
+                                </div>
+                                <div class="flex items-end">
+                                    <button id="btn-fetch-history" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition shadow-sm text-sm">
+                                        Voir l'historique
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Results Table -->
+                            <div id="history-results-container" class="border border-slate-200 rounded-xl overflow-hidden hidden">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
+                                        <tr>
+                                            <th class="px-4 py-3">Date</th>
+                                            <th class="px-4 py-3">Jour</th>
+                                            <th class="px-4 py-3">Bureau</th>
+                                            <th class="px-4 py-3">Statut</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="history-table-body" class="bg-white divide-y divide-slate-100">
+                                        <!-- Rows injected here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="history-empty-msg" class="text-center text-slate-400 py-10 italic hidden">
+                                Aucune donnée à afficher. Sélectionnez un utilisateur et un mois.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: RULES & BLOCKING -->
                     <div id="admin-tab-rules" class="admin-tab-content hidden">
                         <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                             <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="desk_management">Gestion des Bureaux</span>
@@ -429,7 +495,7 @@
                         </div>
                     </div>
 
-                    <!-- TAB 3: SETTINGS -->
+                    <!-- TAB 4: SETTINGS -->
                     <div id="admin-tab-settings" class="admin-tab-content hidden">
                         <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                             <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="booking_settings">Paramètres de l'Application</span>
@@ -647,9 +713,9 @@
 
         // 2. CONSTANTS
         const TRANSLATIONS = {
-            fr: { main_title: "Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Administration", add_user: "Nouveau Membre", edit_user: "Modifier Membre", update: "Mettre à jour", fixed_rules: "Attribution Places Fixes", add: "Ajouter", disable_desk: "Blocage Technique", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", unknown_dept: "Profil non configuré. Contactez l'IT.", users_list: "Annuaire complet", tab_users: "Membres & Équipes", tab_rules: "Gestion Bureaux", tab_settings: "Paramètres", users_management: "Gestion des Membres", desk_management: "Gestion des Bureaux", booking_settings: "Paramètres de l'Application", save_settings: "Sauvegarder tout" },
-            nl: { main_title: "Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Nieuw Lid", edit_user: "Lid Bewerken", update: "Updaten", fixed_rules: "Vaste Plaatsen", add: "Toevoegen", disable_desk: "Technische Blokkering", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", unknown_dept: "Profiel niet geconfigureerd. Neem contact op met IT.", users_list: "Volledige lijst", tab_users: "Leden & Teams", tab_rules: "Bureau Beheer", tab_settings: "Instellingen", users_management: "Ledenbeheer", desk_management: "Bureau Beheer", booking_settings: "App Instellingen", save_settings: "Alles opslaan" },
-            en: { main_title: "Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "New Member", edit_user: "Edit Member", update: "Update", fixed_rules: "Fixed Seats", add: "Add", disable_desk: "Technical Block", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", unknown_dept: "Profile not configured. Contact IT.", users_list: "Full Directory", tab_users: "Members & Teams", tab_rules: "Desk Mgmt", tab_settings: "Settings", users_management: "Member Management", desk_management: "Desk Management", booking_settings: "App Settings", save_settings: "Save All" }
+            fr: { main_title: "Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Administration", add_user: "Nouveau Membre", edit_user: "Modifier Membre", update: "Mettre à jour", fixed_rules: "Attribution Places Fixes", add: "Ajouter", disable_desk: "Blocage Technique", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", unknown_dept: "Profil non configuré. Contactez l'IT.", users_list: "Annuaire complet", tab_users: "Membres & Équipes", tab_history: "Historique & Audit", tab_rules: "Gestion Bureaux", tab_settings: "Paramètres", users_management: "Gestion des Membres", desk_management: "Gestion des Bureaux", booking_settings: "Paramètres de l'Application", save_settings: "Sauvegarder tout" },
+            nl: { main_title: "Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Nieuw Lid", edit_user: "Lid Bewerken", update: "Updaten", fixed_rules: "Vaste Plaatsen", add: "Toevoegen", disable_desk: "Technische Blokkering", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", unknown_dept: "Profiel niet geconfigureerd. Neem contact op met IT.", users_list: "Volledige lijst", tab_users: "Leden & Teams", tab_history: "Geschiedenis & Audit", tab_rules: "Bureau Beheer", tab_settings: "Instellingen", users_management: "Ledenbeheer", desk_management: "Bureau Beheer", booking_settings: "App Instellingen", save_settings: "Alles opslaan" },
+            en: { main_title: "Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "New Member", edit_user: "Edit Member", update: "Update", fixed_rules: "Fixed Seats", add: "Add", disable_desk: "Technical Block", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", unknown_dept: "Profile not configured. Contact IT.", users_list: "Full Directory", tab_users: "Members & Teams", tab_history: "History & Audit", tab_rules: "Desk Mgmt", tab_settings: "Settings", users_management: "Member Management", desk_management: "Desk Management", booking_settings: "App Settings", save_settings: "Save All" }
         };
 
         const DEPT_COLORS = {
@@ -849,14 +915,36 @@
             });
         }
         
-        async function fetchUserHistory(userName) {
-            const container = document.getElementById('history-content');
-            container.innerHTML = `<div class="text-center text-slate-400 py-8 italic">Chargement...</div>`;
-            document.getElementById('history-modal-title').textContent = `Historique : ${userName}`;
-            document.getElementById('history-modal').classList.remove('hidden');
+        async function fetchUserHistory(userName, month = null) {
+            const container = document.getElementById('history-results-container');
+            const tbody = document.getElementById('history-table-body');
+            const emptyMsg = document.getElementById('history-empty-msg');
+            
+            // Set defaults or use provided
+            const m = month || currentDateString.substring(0, 7); 
+            
+            // If called directly via button, read from inputs
+            const userSelect = document.getElementById('history-user-select');
+            const monthInput = document.getElementById('history-month-select');
+            
+            let targetUser = userName;
+            let targetMonth = m;
 
-            const m = currentDateString.substring(0, 7); // Current Month
-            const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("userName", "==", userName));
+            if(!userName && userSelect) {
+                targetUser = userSelect.value;
+                targetMonth = monthInput.value || m;
+            }
+
+            if(!targetUser) {
+                 toast("Veuillez sélectionner un utilisateur", "error");
+                 return;
+            }
+
+            container.classList.remove('hidden');
+            emptyMsg.classList.add('hidden');
+            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Chargement...</td></tr>`;
+
+            const q = query(collection(db, `/artifacts/${appId}/public/data/desk_reservations`), where("userName", "==", targetUser));
             
             try {
                 const snap = await getDocs(q);
@@ -864,76 +952,106 @@
                 const resList = [];
                 snap.forEach(d => {
                     const data = d.data();
-                    if(data.date.startsWith(m)) { // Filter current month only for now
+                    if(data.date.startsWith(targetMonth)) { 
                         resList.push(data);
                     }
                 });
                 
-                // Sort by date
                 resList.sort((a,b) => a.date.localeCompare(b.date));
 
                 if(resList.length === 0) {
-                    html = `<div class="text-center text-slate-500 py-4">Aucune réservation ce mois-ci.</div>`;
+                    container.classList.add('hidden');
+                    emptyMsg.classList.remove('hidden');
                 } else {
                     resList.forEach(r => {
+                        const isFri = new Date(r.date).getDay() === 5;
                         html += `
-                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                            <div class="flex flex-col">
-                                <span class="text-xs font-bold text-slate-500 uppercase">${r.date}</span>
-                                <span class="font-bold text-slate-800">Bureau ${r.deskId}</span>
-                            </div>
-                            ${new Date(r.date).getDay() === 5 ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded">VENDREDI</span>' : ''}
-                        </div>`;
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-4 py-3 font-medium text-slate-700">${r.date}</td>
+                            <td class="px-4 py-3 text-slate-500">${t('days')[new Date(r.date).getDay()]}</td>
+                            <td class="px-4 py-3 font-bold text-[#c39400]">${r.deskId}</td>
+                            <td class="px-4 py-3">
+                                ${isFri ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded uppercase tracking-wide">Vendredi</span>' : '<span class="px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded uppercase tracking-wide">Standard</span>'}
+                            </td>
+                        </tr>`;
                     });
+                    tbody.innerHTML = html;
                 }
-                container.innerHTML = html;
             } catch(e) {
-                container.innerHTML = `<div class="text-center text-red-500">Erreur de chargement.</div>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Erreur de chargement.</td></tr>`;
             }
         }
 
         // --- 6. RENDERERS ---
         function renderMap() {
             const create = (id) => {
-                const wrapper = document.createElement('div'); wrapper.className = "desk-wrapper"; wrapper.onclick = () => handleDeskClick(id);
-                const res = allReservations[id]; const isDisabled = disabledDesksData.includes(id);
-                const isFixed = !isDisabled && res && res.isFixed; const isMe = currentReservation && currentReservation.deskId === id;
-                const isTaken = !isDisabled && res && !isMe; const isSelected = selectedDeskId === id;
-                let classes = "desk-box "; let content = `<span class="text-[14px] font-bold z-10 mb-1">${id}</span>`; let bottomStrip = "", overlay = "";
-                if(isDisabled) {
+                const wrapper = document.createElement('div');
+                wrapper.className = "desk-wrapper";
+                wrapper.onclick = () => handleDeskClick(id);
+
+                const res = allReservations[id];
+                const isDisabled = disabledDesksData.includes(id);
+                const isFixed = !isDisabled && res && res.isFixed;
+                const isMe = currentReservation && currentReservation.deskId === id;
+                const isTaken = !isDisabled && res && !isMe;
+                const isSelected = selectedDeskId === id;
+                
+                let classes = "desk-box ";
+                let content = `<span class="text-[14px] font-bold z-10 mb-1">${id}</span>`;
+                let bottomStrip = "";
+                let overlay = "";
+
+                if (isDisabled) {
                     classes += "bg-slate-800 border-slate-900 text-slate-500 opacity-80 cursor-not-allowed";
                     overlay = `<div class="floating-badge bg-slate-700 text-white border-slate-600"><span class="material-icons-round text-sm">block</span></div>`;
-                } else if(isFixed) {
+                } else if (isFixed) {
                     classes += "bg-slate-100 border-2 border-slate-300 text-slate-500 shadow-sm";
                     const name = res ? formatName(res.userName) : '';
                     content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-slate-600 font-bold">${name}</span>`;
                     overlay = `<div class="floating-badge bg-slate-800 text-white"><span class="material-icons-round text-[12px]">lock</span></div>`;
                     const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
                     bottomStrip = `<div class="absolute bottom-0 left-0 right-0 h-1.5 ${color}"></div>`;
-                    if(isMe) classes += " ring-4 ring-blue-300"; 
-                } else if(isMe) {
+                    if (isMe) classes += " ring-4 ring-blue-300";
+                } else if (isMe) {
                     classes += "bg-blue-100 border-2 border-blue-300 text-blue-700 shadow-md ring-4 ring-blue-200";
                     content += `<span class="text-[10px] font-bold text-blue-600 leading-tight">${t('my_res')}</span>`;
-                } else if(isTaken) {
+                } else if (isTaken) {
                     classes += "bg-red-50 border-2 border-red-200 text-red-400 shadow-sm";
                     const name = formatName(res.userName);
                     content += `<span class="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight text-red-500">${name}</span>`;
                     const color = DEPT_COLORS[res.userDepartment] || 'bg-slate-400';
                     bottomStrip = `<div class="absolute bottom-0 left-0 right-0 h-1.5 ${color}"></div>`;
-                } else if(isSelected) {
+                } else if (isSelected) {
                     classes += "bg-yellow-300 border-2 border-yellow-500 text-yellow-900 scale-110 shadow-xl z-20 ring-4 ring-yellow-100";
                 } else {
                     classes += "bg-white border-2 border-green-200 text-green-700 hover:border-green-400 hover:shadow-md";
                 }
+
                 const isLocked = isDateLocked(currentDateString);
-                if(isLocked && !isAdminMode) { if(!res && !isDisabled) classes += " opacity-50 cursor-not-allowed"; }
-                if(isAdminMode) classes = classes.replace('cursor-not-allowed', 'cursor-pointer');
-                const box = document.createElement('div'); box.className = classes; box.innerHTML = content + bottomStrip;
-                wrapper.appendChild(box); if(overlay) wrapper.innerHTML += overlay; return wrapper;
+                if (isLocked && !isAdminMode) {
+                    if (!res && !isDisabled) classes += " opacity-50 cursor-not-allowed";
+                }
+                if (isAdminMode) classes = classes.replace('cursor-not-allowed', 'cursor-pointer');
+
+                const box = document.createElement('div');
+                box.className = classes;
+                box.innerHTML = content + bottomStrip;
+                wrapper.appendChild(box);
+
+                if (overlay) {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = overlay;
+                    while (temp.firstChild) {
+                        wrapper.appendChild(temp.firstChild);
+                    }
+                }
+                return wrapper;
             };
+
             const top = document.getElementById('top-row-container'); top.innerHTML='';
             const des = document.getElementById('design-islands-container'); des.innerHTML='';
             const onl = document.getElementById('online-islands-container'); onl.innerHTML='';
+            
             DESK_LAYOUT.TOP_ROW.groups.forEach(g => {
                  const div = document.createElement('div'); div.className = "flex flex-col items-center p-2 rounded-xl bg-white";
                  const sub = document.createElement('div');
@@ -952,9 +1070,11 @@
                  }
                  div.append(sub); top.append(div);
             });
+            
             [DESK_LAYOUT.DESIGN_STUDIO_1, DESK_LAYOUT.DESIGN_STUDIO_2].forEach(i => des.appendChild(renderIsland(i, create)));
             [DESK_LAYOUT.ONLINE_F, DESK_LAYOUT.ONLINE_G].forEach(i => onl.appendChild(renderIsland(i, create)));
         }
+
         function renderIsland(data, createFn) {
             const div = document.createElement('div'); div.className = "flex flex-col items-center flex-1 p-2 bg-white rounded-xl";
             const grid = document.createElement('div'); grid.className = "grid gap-y-2 gap-x-4"; grid.style.gridTemplateColumns = "1fr 8px 1fr"; 
@@ -971,6 +1091,7 @@
             }
             div.appendChild(grid); return div;
         }
+
         function updateStickyBar() {
             const def = document.getElementById('default-bar-status'); const sel = document.getElementById('selection-bar-status'); const myTxt = document.getElementById('my-status-text');
             const b1=document.getElementById('quick-cancel-btn'); const b2=document.getElementById('cancel-selection-btn'); const b3=document.getElementById('confirm-reservation-btn'); const b4=document.getElementById('admin-delete-btn');
@@ -1022,10 +1143,20 @@
         }
         function renderAdminLists() {
              const uList = document.getElementById('admin-users-list'); uList.innerHTML="";
+             // NEW: Get search term
+             const searchTerm = document.getElementById('admin-user-search').value.toLowerCase();
+
              Object.keys(usersData).sort().forEach(dp => {
-                 if(usersData[dp].length === 0) return;
+                 // NEW: Filter users
+                 const filteredUsers = usersData[dp].filter(name => name.toLowerCase().includes(searchTerm));
+                 
+                 // Only render if dept has users matching search
+                 if(filteredUsers.length === 0) return;
+
                  const header = document.createElement('div'); header.className = "text-[10px] font-bold text-slate-400 mt-2 mb-1 uppercase bg-slate-50 p-1 rounded"; header.textContent = dp; uList.appendChild(header);
-                 usersData[dp].sort().forEach(n => {
+                 
+                 // Use filteredUsers instead of usersData[dp]
+                 filteredUsers.sort().forEach(n => {
                      const d=document.createElement('div'); d.className="flex justify-between items-center px-2 py-1 bg-white text-[10px] border rounded mb-1";
                      d.innerHTML=`<span>${n}</span> <div class="flex gap-1"><button class="history-user-btn text-slate-500 hover:text-[#c39400] font-bold rounded px-1" data-name="${n}"><span class="material-icons-round text-xs">history</span></button><button class="edit-user-btn text-indigo-500 font-bold hover:bg-indigo-50 rounded px-1" data-name="${n}" data-dept="${dp}"><span class="material-icons-round text-xs">edit</span></button><button class="delete-user-btn text-red-500 font-bold hover:bg-red-50 rounded px-1" data-name="${n}" data-dept="${dp}">×</button></div>`;
                      uList.appendChild(d);
@@ -1087,6 +1218,17 @@
              const userSelect = document.getElementById('user-select'); // No longer exists in new UI but func needed for logic
              const deptSelect = document.getElementById('admin-new-user-dept'); deptSelect.innerHTML = ""; Object.keys(DEPT_COLORS).sort().forEach(k => deptSelect.add(new Option(k, k)));
              
+             // NEW: History User Select population
+             const historyUserSelect = document.getElementById('history-user-select');
+             if(historyUserSelect) {
+                historyUserSelect.innerHTML = `<option value="" disabled selected>Choisir un membre...</option>`;
+                Object.keys(usersData).sort().forEach(dp => {
+                    const optGroup = document.createElement('optgroup'); optGroup.label = dp;
+                    usersData[dp].sort().forEach(n => { optGroup.appendChild(new Option(n, n)); });
+                    historyUserSelect.appendChild(optGroup);
+                });
+             }
+
              const dSel = document.getElementById('admin-desk-select'); const ddSel = document.getElementById('admin-disable-desk-select');
              dSel.innerHTML = ""; ddSel.innerHTML = ""; DESKS_LIST.sort().forEach(d => { dSel.add(new Option(d,d)); ddSel.add(new Option(d,d)); });
              
@@ -1235,19 +1377,23 @@
              const ddSel = document.getElementById('admin-disable-desk-select');
              DESKS_LIST.sort().forEach(d => { dSel.add(new Option(d,d)); ddSel.add(new Option(d,d)); });
              
-             // TAB SWITCHING LOGIC
-             document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+             // TAB SWITCHING LOGIC (FIXED SELECTOR)
+             document.querySelectorAll('.admin-nav-item').forEach(btn => {
                  btn.onclick = () => {
-                     document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+                     document.querySelectorAll('.admin-nav-item').forEach(b => b.classList.remove('active'));
                      btn.classList.add('active');
                      document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.add('hidden'));
                      document.getElementById(`admin-tab-${btn.dataset.tab}`).classList.remove('hidden');
                  }
              });
              
-             document.getElementById('close-history-btn').onclick = () => {
-                 document.getElementById('history-modal').classList.add('hidden');
+             // History fetch logic
+             document.getElementById('btn-fetch-history').onclick = () => {
+                 fetchUserHistory(null);
              };
+             
+             // SEARCH BAR LOGIC
+             document.getElementById('admin-user-search').addEventListener('input', () => renderAdminLists());
 
              document.getElementById('admin-add-user-btn').onclick = async () => {
                  const n = document.getElementById('admin-new-user-name').value.trim();
