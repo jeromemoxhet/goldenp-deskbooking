@@ -1,12 +1,12 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : CHARTE CORPORATE (Dark Header + Gold Accents)
+  Version : ADMIN-EMAIL-AUTH (Liste Blanche) + FIX LOGO & UI
   
   Mises à jour :
-  - UI : Header passé en fond sombre (Slate-900) pour correspondre à l'identité "Golden Palace".
-  - UI : Remplacement des couleurs "Indigo/Blue" par défaut par le "Gold" (#c39400) ou du "Slate" neutre.
-  - UI : Conservation stricte du code couleur fonctionnel (Vert=Libre, Rouge=Occupé/Admin, Bleu=Soi-même).
-  - UI : Boutons et focus harmonisés.
+  - UI FIX : Ajustement des dimensions et marges du logo (Login & Header) pour éviter le chevauchement.
+  - FEATURE : Remplacement du mot de passe Admin par une vérification d'email (Allowlist).
+  - UI : Ajout de l'onglet "Gestion Admins" dans le panneau d'administration.
+  - LOGIC : Sauvegarde des emails admins dans la configuration Firebase.
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -22,17 +22,11 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         
-        :root {
-            --gp-gold: #c39400;
-            --gp-gold-dark: #a37c00;
-            --gp-dark: #0f172a;
-        }
-
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f1f5f9; /* Slate 100 - Un peu plus contrasté */
+            background-color: #f8fafc; /* Slate 50 */
             color: #0f172a; /* Slate 900 */
-            padding-bottom: 140px;
+            padding-bottom: 140px; /* Espace pour le footer sticky */
         }
 
         /* --- Custom UI --- */
@@ -55,7 +49,7 @@
         }
 
         .step-badge {
-            background-color: var(--gp-gold); /* GOLDEN */
+            background-color: #c39400; /* GOLDEN */
             color: white;
             width: 28px;
             height: 28px;
@@ -72,7 +66,7 @@
         .section-title {
             font-weight: 800;
             font-size: 1.1rem;
-            color: #1e293b; /* Slate 800 */
+            color: #334155;
             text-transform: uppercase;
             letter-spacing: 0.02em;
         }
@@ -135,17 +129,17 @@
         .zone-header {
             width: 100%; text-align: center; font-size: 0.7rem; font-weight: 800;
             text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8;
-            background-color: #f8fafc; padding: 0.5rem; border-radius: 8px;
+            background-color: #f1f5f9; padding: 0.5rem; border-radius: 8px;
             margin-bottom: 1rem; border: 1px dashed #cbd5e1;
         }
 
-        .toggle-checkbox:checked { right: 0; border-color: var(--gp-gold); }
-        .toggle-checkbox:checked + .toggle-label { background-color: var(--gp-gold); }
+        .toggle-checkbox:checked { right: 0; border-color: #c39400; } /* GOLDEN */
+        .toggle-checkbox:checked + .toggle-label { background-color: #c39400; } /* GOLDEN */
         .toggle-checkbox:checked + .toggle-label:before { transform: translateX(100%); }
         
-        .lang-btn-active { background-color: rgba(255,255,255,0.2); color: white; }
+        .lang-btn-active { background-color: #f1f5f9; color: #334155; }
         .lang-btn-inactive { color: #94a3b8; }
-        .lang-btn-inactive:hover { background-color: rgba(255,255,255,0.1); color: white; }
+        .lang-btn-inactive:hover { background-color: #f8fafc; }
         
         /* New Admin UI */
         .admin-nav-item {
@@ -162,10 +156,10 @@
         }
         .admin-nav-item:hover { background-color: #f8fafc; color: #334155; }
         .admin-nav-item.active {
-            background-color: #fffbeb; /* Amber-50 (Gold tint) */
-            color: #b45309; /* Amber-700 */
+            background-color: #fff1f2; /* Red-ish tint for admin */
+            color: #be123c; /* Red text */
             font-weight: 700;
-            border-left-color: var(--gp-gold);
+            border-left-color: #be123c;
         }
         
         .info-grid-row {
@@ -197,8 +191,8 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .week-stat-card.active {
-            background-color: #fff8e1; /* Amber-50 */
-            border-color: var(--gp-gold); 
+            background-color: #fffbeb; 
+            border-color: #c39400; 
             box-shadow: 0 0 0 2px rgba(195, 148, 0, 0.2); 
         }
         .week-stat-card.locked {
@@ -219,17 +213,20 @@
 
     <!-- LOGIN WALL / OVERLAY -->
     <div id="login-overlay" class="fixed inset-0 z-[100] bg-slate-50 flex flex-col items-center justify-center p-6 transition-opacity duration-500">
-        <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-sm w-full text-center relative">
+        <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-sm w-full text-center relative overflow-hidden">
             
             <!-- OVERLAY LANGUAGE SWITCHER -->
-            <div class="absolute top-4 right-4 flex gap-1">
+            <div class="absolute top-4 right-4 flex gap-1 z-10">
                 <button id="overlay-lang-fr" class="text-[10px] font-bold px-2 py-1 rounded hover:bg-slate-100 text-slate-400 transition">FR</button>
                 <button id="overlay-lang-nl" class="text-[10px] font-bold px-2 py-1 rounded hover:bg-slate-100 text-slate-400 transition">NL</button>
                 <button id="overlay-lang-en" class="text-[10px] font-bold px-2 py-1 rounded hover:bg-slate-100 text-slate-400 transition">EN</button>
             </div>
 
             <!-- LOGO (OVERLAY) -->
-            <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-20 mx-auto mb-6 mt-4 object-contain">
+            <!-- Adjusted: reduced height, added max-width, top margin to clear buttons -->
+            <div class="mt-6 mb-6 flex justify-center">
+                <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-20 w-auto max-w-[240px] object-contain">
+            </div>
             
             <div class="mb-8">
                 <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-tight uppercase" data-i18n="login_title">Espace Réservation de Sièges</h1>
@@ -255,426 +252,420 @@
     </div>
 
     <!-- MAIN APP CONTENT -->
-    <div id="app-container" class="w-full max-w-7xl mx-auto relative filter blur-sm transition-all duration-500 pointer-events-none">
+    <div id="app-container" class="w-full max-w-5xl mx-auto relative px-4 pt-6 filter blur-sm transition-all duration-500 pointer-events-none">
         
-        <!-- Header CORPORATE (Dark Background) -->
-        <header class="bg-[#0f172a] text-white shadow-lg sticky top-0 z-40 mb-8">
-            <div class="max-w-5xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-start">
-                    <!-- LOGO (HEADER) -->
-                    <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-10 w-auto object-contain brightness-0 invert">
-                    
-                    <div class="hidden md:block">
-                        <h1 class="text-lg font-bold tracking-tight leading-tight text-white" data-i18n="main_title">Réservation de sièges</h1>
-                        <p class="text-xs text-slate-400 font-medium" data-i18n="subtitle">Paysager - Croix de guerre 120</p>
-                    </div>
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div class="flex items-center gap-6">
+                <!-- LOGO (HEADER) -->
+                <!-- Adjusted height to h-14 for cleaner look -->
+                <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-14 w-auto object-contain hidden md:block">
+                
+                <div>
+                    <h1 class="text-3xl font-black text-slate-800 tracking-tight leading-tight" data-i18n="main_title">Réservation de sièges</h1>
+                    <p class="text-sm text-slate-500 font-medium mt-1" data-i18n="subtitle">Paysager - Croix de guerre 120</p>
+                </div>
+            </div>
 
-                    <!-- Mobile Menu Button could go here -->
+            <div class="flex flex-col md:flex-row items-end md:items-center gap-4">
+                
+                <!-- USER INFO HEADER AREA -->
+                <div id="auth-section" class="flex items-center gap-3 order-first md:order-none opacity-0 transition-opacity duration-300">
+                    <div id="user-logged-in" class="flex items-center gap-2 bg-white border border-slate-200 p-1 pr-3 rounded-full shadow-sm">
+                        <!-- Golden Avatar -->
+                        <div id="user-avatar" class="w-8 h-8 rounded-full bg-[#fff8e1] flex items-center justify-center text-[#c39400] font-bold text-xs border border-[#c39400]/20 uppercase">U</div>
+                        <div class="flex flex-col">
+                            <span id="user-display-name" class="text-[10px] font-bold text-slate-700 leading-tight">User</span>
+                            <span class="text-[9px] text-green-500 font-bold leading-tight" data-i18n="status_connected">Connecté</span>
+                        </div>
+                        <button id="logout-btn" class="text-slate-400 hover:text-red-500 transition ml-2" title="Déconnexion">
+                            <span class="material-icons-round text-sm">logout</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto">
-                    
-                    <!-- USER INFO HEADER AREA -->
-                    <div id="auth-section" class="flex items-center gap-3 order-first md:order-none opacity-0 transition-opacity duration-300 w-full md:w-auto justify-end">
-                        <div id="user-logged-in" class="flex items-center gap-2 bg-slate-800 border border-slate-700 p-1 pr-3 rounded-full shadow-sm">
-                            <!-- Golden Avatar -->
-                            <div id="user-avatar" class="w-8 h-8 rounded-full bg-[#c39400] flex items-center justify-center text-white font-bold text-xs border border-[#c39400]/20 uppercase">U</div>
-                            <div class="flex flex-col">
-                                <span id="user-display-name" class="text-[10px] font-bold text-slate-200 leading-tight">User</span>
-                                <span class="text-[9px] text-[#c39400] font-bold leading-tight uppercase tracking-wider" data-i18n="status_connected">Connecté</span>
-                            </div>
-                            <button id="logout-btn" class="text-slate-400 hover:text-white transition ml-2" title="Déconnexion">
-                                <span class="material-icons-round text-sm">logout</span>
-                            </button>
-                        </div>
+                <div class="flex items-center gap-4">
+                    <div class="bg-white border border-slate-200 rounded-lg p-1 flex shadow-sm">
+                        <button id="lang-fr" class="px-3 py-1 text-xs font-bold rounded-md transition">FR</button>
+                        <button id="lang-nl" class="px-3 py-1 text-xs font-bold rounded-md transition">NL</button>
+                        <button id="lang-en" class="px-3 py-1 text-xs font-bold rounded-md transition">EN</button>
                     </div>
-
-                    <div class="flex items-center gap-4 justify-between w-full md:w-auto">
-                        <div class="bg-slate-800 border border-slate-700 rounded-lg p-1 flex shadow-sm">
-                            <button id="lang-fr" class="px-3 py-1 text-xs font-bold rounded-md transition text-slate-300">FR</button>
-                            <button id="lang-nl" class="px-3 py-1 text-xs font-bold rounded-md transition text-slate-300">NL</button>
-                            <button id="lang-en" class="px-3 py-1 text-xs font-bold rounded-md transition text-slate-300">EN</button>
-                        </div>
-                        <div class="flex items-center">
-                            <label for="admin-mode-toggle" class="flex items-center cursor-pointer">
-                                <div class="relative">
-                                    <input type="checkbox" id="admin-mode-toggle" class="sr-only">
-                                    <div class="block bg-slate-700 w-10 h-6 rounded-full transition-colors duration-300 ease-in-out border border-slate-600" id="toggle-bg"></div>
-                                    <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out shadow-sm"></div>
-                                </div>
-                                <div class="ml-3 text-xs font-bold text-slate-400 uppercase tracking-wide" data-i18n="admin_mode">Admin</div>
-                            </label>
-                        </div>
+                    <div class="flex items-center">
+                        <label for="admin-mode-toggle" class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" id="admin-mode-toggle" class="sr-only">
+                                <div class="block bg-slate-200 w-10 h-6 rounded-full transition-colors duration-300 ease-in-out" id="toggle-bg"></div>
+                                <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out shadow-sm"></div>
+                            </div>
+                            <div class="ml-3 text-xs font-bold text-slate-400 uppercase tracking-wide" data-i18n="admin_mode">Admin</div>
+                        </label>
                     </div>
                 </div>
             </div>
         </header>
 
-        <main class="max-w-5xl mx-auto px-4">
-            <!-- Toast -->
-            <div id="message-area" class="hidden fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full shadow-2xl font-bold text-sm text-center animate-bounce-in transition-all"></div>
+        <!-- Toast -->
+        <div id="message-area" class="hidden fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full shadow-2xl font-bold text-sm text-center animate-bounce-in transition-all"></div>
 
-            <!-- History Modal -->
-            <div id="history-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[80] hidden">
-                <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg transform transition-all scale-100 max-h-[80vh] flex flex-col">
-                    <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                        <h3 class="text-lg font-bold text-slate-800" id="history-modal-title">Historique</h3>
-                        <button id="close-history-btn" class="text-slate-400 hover:text-slate-600"><span class="material-icons-round">close</span></button>
-                    </div>
-                    <div id="history-content" class="overflow-y-auto flex-1 space-y-2">
-                        <div class="text-center text-slate-400 py-8 italic">Chargement...</div>
-                    </div>
+        <!-- History Modal -->
+        <div id="history-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[80] hidden">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg transform transition-all scale-100 max-h-[80vh] flex flex-col">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                    <h3 class="text-lg font-bold text-slate-800" id="history-modal-title">Historique</h3>
+                    <button id="close-history-btn" class="text-slate-400 hover:text-slate-600"><span class="material-icons-round">close</span></button>
+                </div>
+                <div id="history-content" class="overflow-y-auto flex-1 space-y-2">
+                    <div class="text-center text-slate-400 py-8 italic">Chargement...</div>
                 </div>
             </div>
+        </div>
 
-            <!-- ADMIN PANEL (Maintained Red Border for Warning) -->
-            <div id="admin-config-panel" class="hidden mb-8 bg-white border-2 border-red-500 rounded-2xl shadow-xl overflow-hidden relative">
+        <!-- ADMIN PANEL -->
+        <div id="admin-config-panel" class="hidden mb-8 bg-white border-2 border-red-500 rounded-2xl shadow-xl overflow-hidden relative">
+            
+            <!-- ADMIN BANNER -->
+            <div class="bg-red-500 text-white text-xs font-bold text-center py-1 tracking-widest uppercase shadow-sm">
+                Mode Administrateur Actif
+            </div>
+
+            <div class="flex flex-col md:flex-row h-full">
                 
-                <!-- ADMIN BANNER -->
-                <div class="bg-red-500 text-white text-xs font-bold text-center py-1 tracking-widest uppercase shadow-sm">
-                    Mode Administrateur Actif
+                <!-- SIDEBAR NAVIGATION -->
+                <div class="w-full md:w-64 bg-slate-50 border-r border-slate-200 p-0 flex flex-col">
+                    <div class="p-6 border-b border-slate-100">
+                        <div class="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Menu</div>
+                        <div class="text-lg font-bold text-slate-800" data-i18n="admin_config">Administration</div>
+                    </div>
+                    <nav class="flex-1 p-3 space-y-1">
+                        <button class="admin-nav-item active w-full" data-tab="users">
+                            <span class="material-icons-round">people</span> <span data-i18n="tab_users">Membres & Équipes</span>
+                        </button>
+                        <button class="admin-nav-item w-full" data-tab="history">
+                            <span class="material-icons-round">history</span> <span data-i18n="tab_history">Historique & Audit</span>
+                        </button>
+                        <button class="admin-nav-item w-full" data-tab="rules">
+                            <span class="material-icons-round">desk</span> <span data-i18n="tab_rules">Gestion des Bureaux</span>
+                        </button>
+                         <button class="admin-nav-item w-full" data-tab="admins">
+                            <span class="material-icons-round">verified_user</span> <span data-i18n="tab_admins">Gestion Admins</span>
+                        </button>
+                        <button class="admin-nav-item w-full" data-tab="settings">
+                            <span class="material-icons-round">settings</span> <span data-i18n="tab_settings">Paramètres Généraux</span>
+                        </button>
+                    </nav>
                 </div>
 
-                <div class="flex flex-col md:flex-row h-full">
+                <!-- CONTENT AREA -->
+                <div class="flex-1 p-6 md:p-8 bg-white min-h-[500px]">
                     
-                    <!-- SIDEBAR NAVIGATION -->
-                    <div class="w-full md:w-64 bg-slate-50 border-r border-slate-200 p-0 flex flex-col">
-                        <div class="p-6 border-b border-slate-100">
-                            <div class="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Menu</div>
-                            <div class="text-lg font-bold text-slate-800" data-i18n="admin_config">Administration</div>
+                    <!-- TAB 1: USERS -->
+                    <div id="admin-tab-users" class="admin-tab-content">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="users_management">Gestion des Membres</span>
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <!-- FORM -->
+                            <div class="lg:col-span-1">
+                                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm sticky top-4">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-3" id="admin-user-action-label" data-i18n="add_user">Nouveau Membre</label>
+                                    <div class="flex flex-col gap-4">
+                                        <div>
+                                            <span class="text-[10px] text-slate-400 font-semibold mb-1 block">Prénom Nom (Identique SSO)</span>
+                                            <input id="admin-new-user-name" placeholder="Ex: Jean Dupont" class="w-full p-3 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none transition bg-white">
+                                        </div>
+                                        <div>
+                                            <span class="text-[10px] text-slate-400 font-semibold mb-1 block">Département</span>
+                                            <select id="admin-new-user-dept" class="w-full p-3 text-sm border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-[#c39400] outline-none transition cursor-pointer"></select>
+                                        </div>
+                                        <div class="flex gap-2 mt-2 pt-2 border-t border-slate-200">
+                                            <button id="admin-cancel-edit-btn" class="hidden flex-1 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-lg font-bold hover:bg-slate-50 transition text-sm" data-i18n="cancel">Annuler</button>
+                                            <button id="admin-add-user-btn" class="flex-1 py-2.5 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition shadow-md text-sm" data-i18n="add">Ajouter</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- LIST -->
+                            <div class="lg:col-span-2">
+                                <div class="flex justify-between items-center mb-3">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase" data-i18n="users_list">Annuaire complet</label>
+                                    <div class="relative">
+                                        <input type="text" id="admin-user-search" placeholder="Rechercher..." class="text-xs p-2 pl-8 border border-slate-200 rounded-lg w-48 bg-slate-50 focus:bg-white transition outline-none focus:ring-2 focus:ring-[#c39400]/20">
+                                        <span class="material-icons-round absolute left-2 top-2 text-slate-400 text-sm">search</span>
+                                    </div>
+                                </div>
+                                <div id="admin-users-list" class="h-96 overflow-y-auto pr-2 space-y-2">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
                         </div>
-                        <nav class="flex-1 p-3 space-y-1">
-                            <button class="admin-nav-item active w-full" data-tab="users">
-                                <span class="material-icons-round">people</span> <span data-i18n="tab_users">Membres & Équipes</span>
-                            </button>
-                            <button class="admin-nav-item w-full" data-tab="history">
-                                <span class="material-icons-round">history</span> <span data-i18n="tab_history">Historique & Audit</span>
-                            </button>
-                            <button class="admin-nav-item w-full" data-tab="rules">
-                                <span class="material-icons-round">desk</span> <span data-i18n="tab_rules">Gestion des Bureaux</span>
-                            </button>
-                            <button class="admin-nav-item w-full" data-tab="admins">
-                                <span class="material-icons-round">verified_user</span> <span data-i18n="tab_admins">Gestion Admins</span>
-                            </button>
-                            <button class="admin-nav-item w-full" data-tab="settings">
-                                <span class="material-icons-round">settings</span> <span data-i18n="tab_settings">Paramètres Généraux</span>
-                            </button>
-                        </nav>
                     </div>
 
-                    <!-- CONTENT AREA -->
-                    <div class="flex-1 p-6 md:p-8 bg-white min-h-[500px]">
+                    <!-- TAB 2: HISTORY (NEW) -->
+                    <div id="admin-tab-history" class="admin-tab-content hidden">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="tab_history">Historique & Audit</span>
+                        </h3>
                         
-                        <!-- TAB 1: USERS -->
-                        <div id="admin-tab-users" class="admin-tab-content">
-                            <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                                <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="users_management">Gestion des Membres</span>
-                            </h3>
-                            
-                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <!-- FORM -->
-                                <div class="lg:col-span-1">
-                                    <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm sticky top-4">
-                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-3" id="admin-user-action-label" data-i18n="add_user">Nouveau Membre</label>
-                                        <div class="flex flex-col gap-4">
-                                            <div>
-                                                <span class="text-[10px] text-slate-400 font-semibold mb-1 block">Prénom Nom (Identique SSO)</span>
-                                                <input id="admin-new-user-name" placeholder="Ex: Jean Dupont" class="w-full p-3 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none transition bg-white">
-                                            </div>
-                                            <div>
-                                                <span class="text-[10px] text-slate-400 font-semibold mb-1 block">Département</span>
-                                                <select id="admin-new-user-dept" class="w-full p-3 text-sm border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-[#c39400] outline-none transition cursor-pointer"></select>
-                                            </div>
-                                            <div class="flex gap-2 mt-2 pt-2 border-t border-slate-200">
-                                                <button id="admin-cancel-edit-btn" class="hidden flex-1 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-lg font-bold hover:bg-slate-50 transition text-sm" data-i18n="cancel">Annuler</button>
-                                                <button id="admin-add-user-btn" class="flex-1 py-2.5 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition shadow-md text-sm" data-i18n="add">Ajouter</button>
-                                            </div>
-                                        </div>
-                                    </div>
+                        <div class="flex flex-col gap-6">
+                            <!-- Filters -->
+                            <div class="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Utilisateur à vérifier</label>
+                                    <select id="history-user-select" class="w-full p-2 text-sm border border-slate-300 rounded-lg">
+                                        <option value="" disabled selected>Choisir un membre...</option>
+                                    </select>
                                 </div>
-                                
-                                <!-- LIST -->
-                                <div class="lg:col-span-2">
-                                    <div class="flex justify-between items-center mb-3">
-                                        <label class="block text-xs font-bold text-slate-500 uppercase" data-i18n="users_list">Annuaire complet</label>
-                                        <div class="relative">
-                                            <input type="text" id="admin-user-search" placeholder="Rechercher..." class="text-xs p-2 pl-8 border border-slate-200 rounded-lg w-48 bg-slate-50 focus:bg-white transition outline-none focus:ring-2 focus:ring-[#c39400]/20">
-                                            <span class="material-icons-round absolute left-2 top-2 text-slate-400 text-sm">search</span>
-                                        </div>
-                                    </div>
-                                    <div id="admin-users-list" class="h-96 overflow-y-auto pr-2 space-y-2">
-                                        <!-- Populated by JS -->
-                                    </div>
+                                <div class="w-full md:w-48">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Mois</label>
+                                    <input type="month" id="history-month-select" class="w-full p-2 text-sm border border-slate-300 rounded-lg">
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- TAB 2: HISTORY (NEW) -->
-                        <div id="admin-tab-history" class="admin-tab-content hidden">
-                            <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                                <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="tab_history">Historique & Audit</span>
-                            </h3>
-                            
-                            <div class="flex flex-col gap-6">
-                                <!-- Filters -->
-                                <div class="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                                    <div class="flex-1">
-                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Utilisateur à vérifier</label>
-                                        <select id="history-user-select" class="w-full p-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none">
-                                            <option value="" disabled selected>Choisir un membre...</option>
-                                        </select>
-                                    </div>
-                                    <div class="w-full md:w-48">
-                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Mois</label>
-                                        <input type="month" id="history-month-select" class="w-full p-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none">
-                                    </div>
-                                    <div class="flex items-end">
-                                        <button id="btn-fetch-history" class="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition shadow-sm text-sm">
-                                            Voir l'historique
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Results Table -->
-                                <div id="history-results-container" class="border border-slate-200 rounded-xl overflow-hidden hidden">
-                                    <table class="w-full text-sm text-left">
-                                        <thead class="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
-                                            <tr>
-                                                <th class="px-4 py-3">Date</th>
-                                                <th class="px-4 py-3">Jour</th>
-                                                <th class="px-4 py-3">Bureau</th>
-                                                <th class="px-4 py-3">Statut</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="history-table-body" class="bg-white divide-y divide-slate-100">
-                                            <!-- Rows injected here -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div id="history-empty-msg" class="text-center text-slate-400 py-10 italic hidden">
-                                    Aucune donnée à afficher. Sélectionnez un utilisateur et un mois.
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- TAB 3: RULES & BLOCKING -->
-                        <div id="admin-tab-rules" class="admin-tab-content hidden">
-                            <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                                <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="desk_management">Gestion des Bureaux</span>
-                            </h3>
-
-                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                <!-- Fixed Rules Section -->
-                                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                                    <div class="bg-slate-50 p-4 border-b border-slate-100 flex items-center gap-2">
-                                        <span class="material-icons-round text-slate-500">lock</span>
-                                        <h4 class="font-bold text-slate-800" data-i18n="fixed_rules">Attribution Places Fixes</h4>
-                                    </div>
-                                    <div class="p-4">
-                                        <div class="grid grid-cols-3 gap-2 mb-3">
-                                            <select id="admin-day-select" class="p-2 text-xs border border-slate-200 rounded font-bold bg-white focus:ring-2 focus:ring-[#c39400] outline-none"></select>
-                                            <select id="admin-desk-select" class="p-2 text-xs border border-slate-200 rounded bg-white focus:ring-2 focus:ring-[#c39400] outline-none"></select>
-                                            <select id="admin-rule-user-select" class="p-2 text-xs border border-slate-200 rounded bg-white focus:ring-2 focus:ring-[#c39400] outline-none"></select>
-                                        </div>
-                                        <button id="admin-add-rule-btn" class="w-full py-2 bg-[#c39400] text-white rounded-lg font-bold text-xs hover:bg-[#a37c00] transition mb-4" data-i18n="add">Créer la règle</button>
-                                        <div id="admin-rules-list" class="h-48 overflow-y-auto bg-slate-50 rounded border border-slate-200 p-2 space-y-1"></div>
-                                    </div>
-                                </div>
-
-                                <!-- Blocking Section (Keep RED for Danger) -->
-                                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                                    <div class="bg-red-50 p-4 border-b border-red-100 flex items-center gap-2">
-                                        <span class="material-icons-round text-red-500">block</span>
-                                        <h4 class="font-bold text-red-900" data-i18n="disable_desk">Blocage Technique</h4>
-                                    </div>
-                                    <div class="p-4">
-                                        <div class="flex gap-2 mb-3">
-                                            <select id="admin-disable-desk-select" class="flex-1 p-2 text-xs border border-red-200 rounded focus:ring-red-500 outline-none"></select>
-                                            <button id="admin-disable-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition" data-i18n="block">Bloquer</button>
-                                        </div>
-                                        <div id="admin-disabled-list" class="h-48 overflow-y-auto bg-slate-50 rounded border border-slate-200 p-2 space-y-1"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- TAB 4: ADMIN MANAGEMENT (NEW) -->
-                        <div id="admin-tab-admins" class="admin-tab-content hidden">
-                            <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                                <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="admin_access_title">Gestion des Accès Admin</span>
-                            </h3>
-                            
-                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-6">
-                                <h4 class="font-bold text-slate-800 mb-2 flex items-center gap-2"><span class="material-icons-round text-[#c39400]">verified_user</span> Liste Blanche (Emails autorisés)</h4>
-                                <p class="text-sm text-slate-500 mb-4">Seuls les utilisateurs dont l'email figure dans cette liste peuvent activer le mode administrateur.</p>
-                                
-                                <div class="flex gap-3 mb-4">
-                                    <input type="email" id="new-admin-email-input" placeholder="email@goldenpalace.be" class="flex-1 p-3 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none">
-                                    <button id="btn-add-admin-email" class="px-6 py-2 bg-[#c39400] text-white font-bold rounded-lg hover:bg-[#a37c00] transition shadow-sm">Ajouter</button>
-                                </div>
-                                
-                                <div id="admin-emails-list" class="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100 max-h-64 overflow-y-auto">
-                                    <!-- List injected here -->
-                                </div>
-                            </div>
-                        </div>
-
-
-                        <!-- TAB 5: SETTINGS -->
-                        <div id="admin-tab-settings" class="admin-tab-content hidden">
-                            <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                                <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="booking_settings">Paramètres de l'Application</span>
-                            </h3>
-                            
-                            <div class="max-w-2xl">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="p-5 bg-slate-50 rounded-xl border border-slate-200">
-                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Heure limite de réservation</label>
-                                        <div class="flex items-center gap-3">
-                                            <input type="number" id="admin-cutoff-hour" class="w-20 p-3 text-center font-bold border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none" min="0" max="23">
-                                            <span class="text-sm text-slate-600">heures (00h - 23h)</span>
-                                        </div>
-                                        <p class="text-xs text-slate-400 mt-2">Passé cette heure, la journée en cours est verrouillée.</p>
-                                    </div>
-
-                                    <div class="p-5 bg-slate-50 rounded-xl border border-slate-200">
-                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Visibilité Calendrier</label>
-                                        <div class="flex items-center gap-3">
-                                            <input type="number" id="admin-day-offset" class="w-20 p-3 text-center font-bold border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none" min="-5" max="5">
-                                            <span class="text-sm text-slate-600">jours de décalage</span>
-                                        </div>
-                                        <p class="text-xs text-slate-400 mt-2">Ajuste la date de "démarrage" de la semaine affichée.</p>
-                                    </div>
-
-                                    <div class="p-5 bg-slate-50 rounded-xl border border-slate-200 md:col-span-2">
-                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Objectif Télétravail</label>
-                                        <div class="flex items-center gap-3">
-                                            <input type="number" id="admin-required-fridays" class="w-20 p-3 text-center font-bold border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c39400] outline-none" min="1" max="5">
-                                            <span class="text-sm text-slate-600">vendredis obligatoires par mois</span>
-                                        </div>
-                                        <p class="text-xs text-slate-400 mt-2">Définit l'objectif affiché sur la carte d'identité de l'utilisateur.</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-8 pt-6 border-t border-slate-100">
-                                    <button id="admin-save-settings-btn" class="px-8 py-3 bg-[#c39400] text-white rounded-xl font-bold hover:bg-[#a37c00] transition shadow-lg shadow-[#c39400]/20 flex items-center gap-2">
-                                        <span class="material-icons-round">save</span> <span data-i18n="save_settings">Sauvegarder tout</span>
+                                <div class="flex items-end">
+                                    <button id="btn-fetch-history" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition shadow-sm text-sm">
+                                        Voir l'historique
                                     </button>
                                 </div>
                             </div>
+
+                            <!-- Results Table -->
+                            <div id="history-results-container" class="border border-slate-200 rounded-xl overflow-hidden hidden">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
+                                        <tr>
+                                            <th class="px-4 py-3">Date</th>
+                                            <th class="px-4 py-3">Jour</th>
+                                            <th class="px-4 py-3">Bureau</th>
+                                            <th class="px-4 py-3">Statut</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="history-table-body" class="bg-white divide-y divide-slate-100">
+                                        <!-- Rows injected here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="history-empty-msg" class="text-center text-slate-400 py-10 italic hidden">
+                                Aucune donnée à afficher. Sélectionnez un utilisateur et un mois.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: RULES & BLOCKING -->
+                    <div id="admin-tab-rules" class="admin-tab-content hidden">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="desk_management">Gestion des Bureaux</span>
+                        </h3>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <!-- Fixed Rules Section -->
+                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                <div class="bg-indigo-50 p-4 border-b border-indigo-100 flex items-center gap-2">
+                                    <span class="material-icons-round text-indigo-500">lock</span>
+                                    <h4 class="font-bold text-indigo-900" data-i18n="fixed_rules">Attribution Places Fixes</h4>
+                                </div>
+                                <div class="p-4">
+                                    <div class="grid grid-cols-3 gap-2 mb-3">
+                                        <select id="admin-day-select" class="p-2 text-xs border border-indigo-200 rounded font-bold bg-white focus:ring-indigo-500"></select>
+                                        <select id="admin-desk-select" class="p-2 text-xs border border-indigo-200 rounded bg-white focus:ring-indigo-500"></select>
+                                        <select id="admin-rule-user-select" class="p-2 text-xs border border-indigo-200 rounded bg-white focus:ring-indigo-500"></select>
+                                    </div>
+                                    <button id="admin-add-rule-btn" class="w-full py-2 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 transition mb-4" data-i18n="add">Créer la règle</button>
+                                    <div id="admin-rules-list" class="h-48 overflow-y-auto bg-slate-50 rounded border border-slate-200 p-2 space-y-1"></div>
+                                </div>
+                            </div>
+
+                            <!-- Blocking Section -->
+                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                <div class="bg-red-50 p-4 border-b border-red-100 flex items-center gap-2">
+                                    <span class="material-icons-round text-red-500">block</span>
+                                    <h4 class="font-bold text-red-900" data-i18n="disable_desk">Blocage Technique</h4>
+                                </div>
+                                <div class="p-4">
+                                    <div class="flex gap-2 mb-3">
+                                        <select id="admin-disable-desk-select" class="flex-1 p-2 text-xs border border-red-200 rounded focus:ring-red-500"></select>
+                                        <button id="admin-disable-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition" data-i18n="block">Bloquer</button>
+                                    </div>
+                                    <div id="admin-disabled-list" class="h-48 overflow-y-auto bg-slate-50 rounded border border-slate-200 p-2 space-y-1"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- TAB 4: ADMIN MANAGEMENT (NEW) -->
+                    <div id="admin-tab-admins" class="admin-tab-content hidden">
+                         <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="admin_access_title">Gestion des Accès Admin</span>
+                        </h3>
+                        
+                        <div class="bg-purple-50 border border-purple-200 rounded-xl p-6 mb-6">
+                            <h4 class="font-bold text-purple-900 mb-2 flex items-center gap-2"><span class="material-icons-round">verified_user</span> Liste Blanche (Emails autorisés)</h4>
+                            <p class="text-sm text-purple-800 mb-4">Seuls les utilisateurs dont l'email figure dans cette liste peuvent activer le mode administrateur. Les emails par défaut sont protégés.</p>
+                            
+                            <div class="flex gap-3 mb-4">
+                                <input type="email" id="new-admin-email-input" placeholder="email@goldenpalace.be" class="flex-1 p-3 text-sm border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                                <button id="btn-add-admin-email" class="px-6 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition shadow-sm">Ajouter</button>
+                            </div>
+                            
+                            <div id="admin-emails-list" class="bg-white rounded-lg border border-purple-100 divide-y divide-purple-50 max-h-64 overflow-y-auto">
+                                <!-- List injected here -->
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- TAB 5: SETTINGS -->
+                    <div id="admin-tab-settings" class="admin-tab-content hidden">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="booking_settings">Paramètres de l'Application</span>
+                        </h3>
+                        
+                        <div class="max-w-2xl">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="p-5 bg-slate-50 rounded-xl border border-slate-200">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Heure limite de réservation</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" id="admin-cutoff-hour" class="w-20 p-3 text-center font-bold border border-slate-300 rounded-lg" min="0" max="23">
+                                        <span class="text-sm text-slate-600">heures (00h - 23h)</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-2">Passé cette heure, la journée en cours est verrouillée.</p>
+                                </div>
+
+                                <div class="p-5 bg-slate-50 rounded-xl border border-slate-200">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Visibilité Calendrier</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" id="admin-day-offset" class="w-20 p-3 text-center font-bold border border-slate-300 rounded-lg" min="-5" max="5">
+                                        <span class="text-sm text-slate-600">jours de décalage</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-2">Ajuste la date de "démarrage" de la semaine affichée.</p>
+                                </div>
+
+                                <div class="p-5 bg-slate-50 rounded-xl border border-slate-200 md:col-span-2">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Objectif Télétravail</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" id="admin-required-fridays" class="w-20 p-3 text-center font-bold border border-slate-300 rounded-lg" min="1" max="5">
+                                        <span class="text-sm text-slate-600">vendredis obligatoires par mois</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-2">Définit l'objectif affiché sur la carte d'identité de l'utilisateur.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8 pt-6 border-t border-slate-100">
+                                <button id="admin-save-settings-btn" class="px-8 py-3 bg-[#c39400] text-white rounded-xl font-bold hover:bg-[#a37c00] transition shadow-lg shadow-[#c39400]/20 flex items-center gap-2">
+                                    <span class="material-icons-round">save</span> <span data-i18n="save_settings">Sauvegarder tout</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 1 -->
+        <section class="card relative z-10">
+            <div class="section-header">
+                <div class="step-badge">1</div>
+                <h2 class="section-title" data-i18n="my_info">Mes Informations</h2>
+            </div>
+            <div class="p-6 bg-slate-50/50">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="space-y-6">
+                        <!-- NEW IDENTITY BLOCK -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="identity">Identité</label>
+                            <div class="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                                <div class="w-12 h-12 rounded-full bg-[#fff8e1] flex items-center justify-center text-[#c39400] font-black text-lg border border-[#c39400]/20" id="step1-avatar">U</div>
+                                <div class="flex-1 relative z-10">
+                                    <div class="text-sm font-bold text-slate-800" id="step1-username">Chargement...</div>
+                                    <div class="text-xs text-slate-500" id="step1-dept-display">Recherche département...</div>
+                                </div>
+                                <!-- Error Overlay if not found -->
+                                <div id="dept-error-msg" class="hidden absolute inset-0 bg-red-50/90 flex items-center justify-center text-red-600 text-xs font-bold z-20 px-4 text-center">
+                                    <span class="material-icons-round text-sm mr-2">error</span> Profil non configuré. Contactez l'IT.
+                                </div>
+                            </div>
                         </div>
 
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="date">Date</label>
+                            <div class="flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                <input type="date" id="date-selector" class="flex-1 p-3 outline-none text-slate-800 font-semibold cursor-pointer">
+                                <!-- Golden Date Label Background -->
+                                <div id="day-label" class="px-5 bg-[#fff8e1] border-l border-[#ffe082] flex items-center text-[#c39400] font-bold text-sm uppercase">...</div>
+                            </div>
+                        </div>
+
+                          <!-- WEEKLY AVAILABILITY WIDGET -->
+                          <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="week_availability">Disponibilités Semaine</label>
+                            <div id="weekly-availability-container" class="grid grid-cols-5 gap-2">
+                                <!-- Generated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="user-info-card" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-center relative h-full">
+                        <div class="info-grid-row border-b border-slate-100 mb-3 pb-3">
+                            <span class="text-xs text-slate-400 font-bold uppercase" data-i18n="department">Département</span>
+                            <span id="user-dept-badge" class="text-[10px] px-2 py-1 rounded-full font-bold text-white uppercase tracking-wide bg-slate-300">...</span>
+                        </div>
+                        <div class="info-grid-row mb-4">
+                            <span class="text-xs text-slate-400 font-bold uppercase" data-i18n="friday_goal">Objectif Vendredi</span>
+                            <span id="user-friday-stats" class="text-sm font-bold text-slate-700">...</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs text-slate-400 font-bold uppercase mb-2" data-i18n="fixed_days">Jours Fixes</span>
+                            <div id="user-fixed-days" class="flex flex-col gap-1 text-sm">
+                                <span class="text-xs italic text-slate-400">...</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- STEP 1 -->
-            <section class="card relative z-10">
-                <div class="section-header">
-                    <div class="step-badge">1</div>
-                    <h2 class="section-title" data-i18n="my_info">Mes Informations</h2>
+        <!-- STEP 2 -->
+        <section class="card mb-32 relative z-0">
+            <div class="section-header justify-between sticky top-0 bg-white/95 backdrop-blur z-30 shadow-sm">
+                <div class="flex items-center">
+                    <div class="step-badge">2</div>
+                    <h2 class="section-title" data-i18n="book_place">Je réserve ma place</h2>
                 </div>
-                <div class="p-6 bg-slate-50/50">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div class="space-y-6">
-                            <!-- NEW IDENTITY BLOCK -->
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="identity">Identité</label>
-                                <div class="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
-                                    <div class="w-12 h-12 rounded-full bg-[#fff8e1] flex items-center justify-center text-[#c39400] font-black text-lg border border-[#c39400]/20" id="step1-avatar">U</div>
-                                    <div class="flex-1 relative z-10">
-                                        <div class="text-sm font-bold text-slate-800" id="step1-username">Chargement...</div>
-                                        <div class="text-xs text-slate-500" id="step1-dept-display">Recherche département...</div>
-                                    </div>
-                                    <!-- Error Overlay if not found -->
-                                    <div id="dept-error-msg" class="hidden absolute inset-0 bg-red-50/90 flex items-center justify-center text-red-600 text-xs font-bold z-20 px-4 text-center">
-                                        <span class="material-icons-round text-sm mr-2">error</span> Profil non configuré. Contactez l'IT.
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="date">Date</label>
-                                <div class="flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                                    <input type="date" id="date-selector" class="flex-1 p-3 outline-none text-slate-800 font-semibold cursor-pointer">
-                                    <!-- Golden Date Label Background -->
-                                    <div id="day-label" class="px-5 bg-[#fff8e1] border-l border-[#ffe082] flex items-center text-[#c39400] font-bold text-sm uppercase">...</div>
-                                </div>
-                            </div>
-
-                              <!-- WEEKLY AVAILABILITY WIDGET -->
-                              <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-2" data-i18n="week_availability">Disponibilités Semaine</label>
-                                <div id="weekly-availability-container" class="grid grid-cols-5 gap-2">
-                                    <!-- Generated by JS -->
-                                </div>
-                            </div>
+                <div class="hidden sm:flex gap-2">
+                    <div class="legend-pill border-green-400 text-green-700"><span class="material-icons-round text-sm mr-1">check_circle_outline</span> <span data-i18n="free">Libre</span></div>
+                    <div class="legend-pill border-red-300 bg-red-50 text-red-600"><span class="material-icons-round text-sm mr-1">block</span> <span data-i18n="occupied">Occupé</span></div>
+                    <div class="legend-pill border-blue-600 bg-blue-50 text-blue-700"><span class="material-icons-round text-sm mr-1">person</span> <span data-i18n="my_res">Ma rés.</span></div>
+                    <div class="legend-pill border-slate-300 bg-slate-100 text-slate-500"><span class="material-icons-round text-sm mr-1">lock</span> <span data-i18n="fixed">Fixe</span></div>
+                </div>
+            </div>
+            
+            <div class="p-6 bg-slate-50/50">
+                <div id="desk-map-layout" class="w-full flex flex-col gap-8 select-none pb-4">
+                    <!-- Top Zone -->
+                    <div class="relative bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                        <div class="zone-header" data-i18n="zone_digital">ZONE DIGITAL / CLUSTERS</div>
+                        <div id="top-row-container" class="grid grid-cols-2 md:grid-cols-4 gap-6 justify-items-center"></div>
+                    </div>
+                    <!-- Bottom Zones -->
+                    <div class="flex flex-col md:flex-row gap-6 w-full">
+                        <div class="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                            <div class="zone-header" data-i18n="zone_online">ZONE ONLINE PRODUCTS</div>
+                            <!-- MOBILE FIX: flex-wrap added to allow items to wrap on small screens -->
+                            <div id="online-islands-container" class="flex flex-row flex-wrap gap-4 justify-center h-full items-start"></div>
                         </div>
-
-                        <div id="user-info-card" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-center relative h-full">
-                            <div class="info-grid-row border-b border-slate-100 mb-3 pb-3">
-                                <span class="text-xs text-slate-400 font-bold uppercase" data-i18n="department">Département</span>
-                                <span id="user-dept-badge" class="text-[10px] px-2 py-1 rounded-full font-bold text-white uppercase tracking-wide bg-slate-300">...</span>
-                            </div>
-                            <div class="info-grid-row mb-4">
-                                <span class="text-xs text-slate-400 font-bold uppercase" data-i18n="friday_goal">Objectif Vendredi</span>
-                                <span id="user-friday-stats" class="text-sm font-bold text-slate-700">...</span>
-                            </div>
-                            <div class="flex flex-col">
-                                <span class="text-xs text-slate-400 font-bold uppercase mb-2" data-i18n="fixed_days">Jours Fixes</span>
-                                <div id="user-fixed-days" class="flex flex-col gap-1 text-sm">
-                                    <span class="text-xs italic text-slate-400">...</span>
-                                </div>
-                            </div>
+                        <div class="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                            <div class="zone-header" data-i18n="zone_design">ZONE DESIGN STUDIO</div>
+                             <!-- MOBILE FIX: flex-wrap added -->
+                            <div id="design-islands-container" class="flex flex-row flex-wrap gap-4 justify-center h-full items-start"></div>
                         </div>
                     </div>
                 </div>
-            </section>
-
-            <!-- STEP 2 -->
-            <section class="card mb-32 relative z-0">
-                <div class="section-header justify-between sticky top-0 bg-white/95 backdrop-blur z-30 shadow-sm">
-                    <div class="flex items-center">
-                        <div class="step-badge">2</div>
-                        <h2 class="section-title" data-i18n="book_place">Je réserve ma place</h2>
-                    </div>
-                    <div class="hidden sm:flex gap-2">
-                        <div class="legend-pill border-green-400 text-green-700"><span class="material-icons-round text-sm mr-1">check_circle_outline</span> <span data-i18n="free">Libre</span></div>
-                        <div class="legend-pill border-red-300 bg-red-50 text-red-600"><span class="material-icons-round text-sm mr-1">block</span> <span data-i18n="occupied">Occupé</span></div>
-                        <div class="legend-pill border-blue-600 bg-blue-50 text-blue-700"><span class="material-icons-round text-sm mr-1">person</span> <span data-i18n="my_res">Ma rés.</span></div>
-                        <div class="legend-pill border-slate-300 bg-slate-100 text-slate-500"><span class="material-icons-round text-sm mr-1">lock</span> <span data-i18n="fixed">Fixe</span></div>
-                    </div>
+                <div class="mt-6 pt-6 border-t border-slate-200">
+                      <p class="text-[10px] font-bold text-slate-400 uppercase mb-3" data-i18n="legend_dept">Départements</p>
+                      <div class="flex flex-wrap gap-2" id="legend-dept-container"></div>
                 </div>
-                
-                <div class="p-6 bg-slate-50/50">
-                    <div id="desk-map-layout" class="w-full flex flex-col gap-8 select-none pb-4">
-                        <!-- Top Zone -->
-                        <div class="relative bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                            <div class="zone-header" data-i18n="zone_digital">ZONE DIGITAL / CLUSTERS</div>
-                            <div id="top-row-container" class="grid grid-cols-2 md:grid-cols-4 gap-6 justify-items-center"></div>
-                        </div>
-                        <!-- Bottom Zones -->
-                        <div class="flex flex-col md:flex-row gap-6 w-full">
-                            <div class="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                                <div class="zone-header" data-i18n="zone_online">ZONE ONLINE PRODUCTS</div>
-                                <!-- MOBILE FIX: flex-wrap added to allow items to wrap on small screens -->
-                                <div id="online-islands-container" class="flex flex-row flex-wrap gap-4 justify-center h-full items-start"></div>
-                            </div>
-                            <div class="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                                <div class="zone-header" data-i18n="zone_design">ZONE DESIGN STUDIO</div>
-                                 <!-- MOBILE FIX: flex-wrap added -->
-                                <div id="design-islands-container" class="flex flex-row flex-wrap gap-4 justify-center h-full items-start"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-6 pt-6 border-t border-slate-200">
-                          <p class="text-[10px] font-bold text-slate-400 uppercase mb-3" data-i18n="legend_dept">Départements</p>
-                          <div class="flex flex-wrap gap-2" id="legend-dept-container"></div>
-                    </div>
-                </div>
-            </section>
-        
-        </main>
+            </div>
+        </section>
         
         <!-- COPYRIGHT -->
         <div class="text-center text-[10px] text-slate-400 font-medium mt-8 mb-4 pb-8">
@@ -886,7 +877,7 @@
                 currentLang = lang;
                 ['fr','nl','en'].forEach(l => { 
                     const btn = document.getElementById(`lang-${l}`); 
-                    if(btn) btn.className = (lang === l) ? "px-3 py-1 text-xs font-bold rounded-md bg-slate-800 text-white transition lang-btn-active" : "px-3 py-1 text-xs font-bold rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition lang-btn-inactive"; 
+                    if(btn) btn.className = (lang === l) ? "px-3 py-1 text-xs font-bold rounded-md bg-slate-100 text-slate-700 transition lang-btn-active" : "px-3 py-1 text-xs font-bold rounded-md text-slate-400 hover:bg-slate-50 transition lang-btn-inactive"; 
                 });
                 ['fr','nl','en'].forEach(l => { 
                     const btn = document.getElementById(`overlay-lang-${l}`); 
@@ -974,7 +965,7 @@
                  const available = Math.max(0, totalCapacity - occupied);
                  const isLocked = isDateLocked(dateStr);
                  let colorClass;
-                 if (available === 0) { colorClass = 'text-red-500'; } else if (available <= 9) { colorClass = 'text-[#c39400]'; } else { colorClass = 'text-green-600'; }
+                 if (available === 0) { colorClass = 'text-red-500'; } else if (available <= 9) { colorClass = 'text-orange-500'; } else { colorClass = 'text-green-600'; }
                  let bgClass = isSelected ? 'active' : '';
                  if (isLocked) bgClass += ' locked';
                  
@@ -1215,7 +1206,7 @@
             } else {
                 def.classList.remove('hidden'); sel.classList.add('hidden');
                 if(currentReservation) {
-                    if(currentReservation.isFixed) { myTxt.innerHTML = `${t('fixed_place')} <span class="text-[#c39400]">${currentReservation.deskId}</span>`; } 
+                    if(currentReservation.isFixed) { myTxt.innerHTML = `${t('fixed_place')} <span class="text-indigo-600">${currentReservation.deskId}</span>`; } 
                     else { myTxt.innerHTML = `${t('reserved')} <span class="text-blue-600">${currentReservation.deskId}</span>`; b1.classList.remove('hidden'); }
                 } else { myTxt.textContent = t('no_res'); }
             }
@@ -1240,7 +1231,7 @@
                     hasFixed = true;
                     const row = document.createElement('div'); row.className = "info-grid-row text-xs"; 
                     const dayLabel = document.createElement('span'); dayLabel.className = "font-medium text-slate-700"; dayLabel.textContent = dayNames[i];
-                    const deskValue = document.createElement('span'); deskValue.className = "font-bold text-[#c39400] justify-self-end"; deskValue.textContent = desk;
+                    const deskValue = document.createElement('span'); deskValue.className = "font-bold text-indigo-600 justify-self-end"; deskValue.textContent = desk;
                     row.appendChild(dayLabel); row.appendChild(deskValue);
                     fixedDataContainer.appendChild(row);
                 }
@@ -1260,7 +1251,7 @@
                  const header = document.createElement('div'); header.className = "text-[10px] font-bold text-slate-400 mt-2 mb-1 uppercase bg-slate-50 p-1 rounded"; header.textContent = dp; uList.appendChild(header);
                  filteredUsers.sort().forEach(n => {
                      const d=document.createElement('div'); d.className="flex justify-between items-center px-2 py-1 bg-white text-[10px] border rounded mb-1";
-                     d.innerHTML=`<span>${n}</span> <div class="flex gap-1"><button class="history-user-btn text-slate-500 hover:text-[#c39400] font-bold rounded px-1" data-name="${n}"><span class="material-icons-round text-xs">history</span></button><button class="edit-user-btn text-[#c39400] font-bold hover:bg-[#fff8e1] rounded px-1" data-name="${n}" data-dept="${dp}"><span class="material-icons-round text-xs">edit</span></button><button class="delete-user-btn text-red-500 font-bold hover:bg-red-50 rounded px-1" data-name="${n}" data-dept="${dp}">×</button></div>`;
+                     d.innerHTML=`<span>${n}</span> <div class="flex gap-1"><button class="history-user-btn text-slate-500 hover:text-[#c39400] font-bold rounded px-1" data-name="${n}"><span class="material-icons-round text-xs">history</span></button><button class="edit-user-btn text-indigo-500 font-bold hover:bg-indigo-50 rounded px-1" data-name="${n}" data-dept="${dp}"><span class="material-icons-round text-xs">edit</span></button><button class="delete-user-btn text-red-500 font-bold hover:bg-red-50 rounded px-1" data-name="${n}" data-dept="${dp}">×</button></div>`;
                      uList.appendChild(d);
                  });
              });
@@ -1283,7 +1274,7 @@
                      document.getElementById('admin-new-user-name').value = n; 
                      document.getElementById('admin-new-user-dept').value = dp;
                      document.getElementById('admin-add-user-btn').textContent = t('update'); 
-                     document.getElementById('admin-add-user-btn').classList.remove('bg-slate-800'); 
+                     document.getElementById('admin-add-user-btn').classList.remove('bg-slate-700'); 
                      document.getElementById('admin-add-user-btn').classList.add('bg-[#c39400]'); 
                      document.getElementById('admin-user-action-label').textContent = t('edit_user'); 
                      document.getElementById('admin-cancel-edit-btn').classList.remove('hidden');
@@ -1303,10 +1294,10 @@
                  if(fDay!=='ALL' && i.toString()!==fDay) continue;
                  const rules = fixedAssignmentsData[i];
                  if(rules && Object.keys(rules).length > 0) {
-                     const dayHeader = document.createElement('div'); dayHeader.className = "text-[10px] font-bold text-[#c39400] mt-2 mb-1 border-b border-slate-100 pb-1"; dayHeader.textContent = dayNames[i]; rList.appendChild(dayHeader);
+                     const dayHeader = document.createElement('div'); dayHeader.className = "text-[10px] font-bold text-indigo-500 mt-2 mb-1 border-b border-indigo-100 pb-1"; dayHeader.textContent = dayNames[i]; rList.appendChild(dayHeader);
                      const sortedRules = Object.keys(rules).map(k => ({id: k, ...rules[k]})).sort((a,b) => { if(a.userDepartment < b.userDepartment) return -1; if(a.userDepartment > b.userDepartment) return 1; return a.userName.localeCompare(b.userName); });
                      sortedRules.forEach(r => {
-                         const d=document.createElement('div'); d.className="flex justify-between items-center px-2 py-1 bg-white text-[10px] border rounded mb-1 border-l-4 border-l-[#c39400]";
+                         const d=document.createElement('div'); d.className="flex justify-between items-center px-2 py-1 bg-white text-[10px] border rounded mb-1 border-l-4 border-l-slate-300";
                          d.innerHTML=`<div class="flex gap-2"><b>${r.id}</b> <span>${r.userName} <span class="text-slate-400">(${r.userDepartment})</span></span></div> <button class="text-red-500 font-bold hover:bg-red-50 px-1 rounded">×</button>`;
                          d.querySelector('button').onclick=async()=>{ delete fixedAssignmentsData[i][r.id]; await saveConfig(); };
                          rList.appendChild(d);
@@ -1332,9 +1323,9 @@
                  
                  let html = `
                     <div class="flex items-center gap-2">
-                        <span class="material-icons-round text-xs ${isDefault ? 'text-[#c39400]' : 'text-slate-400'}">person</span>
-                        <span class="${isDefault ? 'font-bold text-slate-800' : 'text-slate-700'}">${email}</span>
-                        ${isDefault ? '<span class="text-[10px] bg-[#fff8e1] text-[#c39400] px-1.5 py-0.5 rounded font-bold uppercase">Default</span>' : ''}
+                        <span class="material-icons-round text-xs ${isDefault ? 'text-purple-400' : 'text-slate-400'}">person</span>
+                        <span class="${isDefault ? 'font-bold text-purple-800' : 'text-slate-700'}">${email}</span>
+                        ${isDefault ? '<span class="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-bold uppercase">Default</span>' : ''}
                     </div>
                  `;
                  
@@ -1601,7 +1592,7 @@
                          document.getElementById('admin-new-user-name').value = ''; 
                          document.getElementById('admin-add-user-btn').textContent = t('add'); 
                          document.getElementById('admin-add-user-btn').classList.remove('bg-[#c39400]'); 
-                         document.getElementById('admin-add-user-btn').classList.add('bg-slate-800'); 
+                         document.getElementById('admin-add-user-btn').classList.add('bg-slate-700'); 
                          document.getElementById('admin-user-action-label').textContent = t('add_user'); 
                          document.getElementById('admin-cancel-edit-btn').classList.add('hidden');
                      } else {
@@ -1616,7 +1607,7 @@
                  document.getElementById('admin-new-user-name').value = ''; 
                  document.getElementById('admin-add-user-btn').textContent = t('add'); 
                  document.getElementById('admin-add-user-btn').classList.remove('bg-[#c39400]'); 
-                 document.getElementById('admin-add-user-btn').classList.add('bg-slate-800'); 
+                 document.getElementById('admin-add-user-btn').classList.add('bg-slate-700'); 
                  document.getElementById('admin-user-action-label').textContent = t('add_user'); 
                  document.getElementById('admin-cancel-edit-btn').classList.add('hidden'); 
              };
@@ -1737,7 +1728,7 @@
                      // Check Access
                      if (checkAdminAccess()) {
                         dot.style.transform = 'translateX(100%)'; 
-                        bg.classList.remove('bg-slate-700'); 
+                        bg.classList.remove('bg-slate-200'); 
                         bg.classList.add('bg-red-600'); 
                         enableAdminMode();
                      } else {
@@ -1746,7 +1737,7 @@
                      }
                 } else { 
                     dot.style.transform = 'translateX(0)'; 
-                    bg.classList.add('bg-slate-700'); 
+                    bg.classList.add('bg-slate-200'); 
                     bg.classList.remove('bg-red-600'); 
                     disableAdminMode(); 
                 }
