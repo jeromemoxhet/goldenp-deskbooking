@@ -1,11 +1,12 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : ADMIN-EMAIL-AUTH (Liste Blanche)
+  Version : ADMIN-EMAIL-AUTH (Liste Blanche) + FIX LOGO
   
   Mises à jour :
   - FEATURE : Remplacement du mot de passe Admin par une vérification d'email (Allowlist).
   - UI : Ajout de l'onglet "Gestion Admins" dans le panneau d'administration.
   - LOGIC : Sauvegarde des emails admins dans la configuration Firebase.
+  - FIX : Rétablissement du chemin local pour le logo (goldenpalace_logo.svg).
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -222,7 +223,7 @@
             </div>
 
             <!-- LOGO (OVERLAY) -->
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/23/Golden_Palace_Logo.svg" onerror="this.src='https://placehold.co/200x80?text=Golden+Palace'" alt="Golden Palace" class="h-24 mx-auto mb-8 object-contain">
+            <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-24 mx-auto mb-8 object-contain">
             
             <div class="mb-8">
                 <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-tight uppercase" data-i18n="login_title">Espace Réservation de Sièges</h1>
@@ -254,7 +255,7 @@
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div class="flex items-center gap-6">
                 <!-- LOGO (HEADER) -->
-                <img src="https://upload.wikimedia.org/wikipedia/commons/2/23/Golden_Palace_Logo.svg" onerror="this.src='https://placehold.co/150x50?text=Golden+Palace'" alt="Golden Palace" class="h-16 w-auto object-contain hidden md:block">
+                <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-16 w-auto object-contain hidden md:block">
                 
                 <div>
                     <h1 class="text-3xl font-black text-slate-800 tracking-tight leading-tight" data-i18n="main_title">Réservation de sièges</h1>
@@ -1340,35 +1341,6 @@
                         await saveConfig();
                     }
                 };
-             });
-        }
-
-        function renderAdminSelectors() {
-             const deptSelect = document.getElementById('admin-new-user-dept'); 
-             deptSelect.innerHTML = ""; 
-             Object.keys(DEPT_COLORS).sort().forEach(k => deptSelect.add(new Option(k, k)));
-             
-             const historyUserSelect = document.getElementById('history-user-select');
-             if(historyUserSelect) {
-                historyUserSelect.innerHTML = `<option value="" disabled selected>Choisir un membre...</option>`;
-                Object.keys(usersData).sort().forEach(dp => {
-                    const optGroup = document.createElement('optgroup'); optGroup.label = dp;
-                    usersData[dp].sort().forEach(n => { optGroup.appendChild(new Option(n, n)); });
-                    historyUserSelect.appendChild(optGroup);
-                });
-             }
-             
-             const dSel = document.getElementById('admin-desk-select'); 
-             const ddSel = document.getElementById('admin-disable-desk-select');
-             dSel.innerHTML = ""; ddSel.innerHTML = ""; 
-             DESKS_LIST.sort().forEach(d => { dSel.add(new Option(d,d)); ddSel.add(new Option(d,d)); });
-             
-             const adminRuleSelect = document.getElementById('admin-rule-user-select'); 
-             adminRuleSelect.innerHTML = "";
-             Object.keys(usersData).sort().forEach(dp => {
-                 const optGroup = document.createElement('optgroup'); optGroup.label = dp;
-                 usersData[dp].sort().forEach(n => { optGroup.appendChild(new Option(n, `${n}|${dp}`)); });
-                 adminRuleSelect.appendChild(optGroup);
              });
         }
 
