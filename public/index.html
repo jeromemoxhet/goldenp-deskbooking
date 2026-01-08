@@ -1,12 +1,11 @@
 <!--
   Application web de réservation de bureau - Golden Palace
-  Version : FIX 2026 & IDENTITY (Format Lisible)
+  Version : ADMIN-EMAIL-AUTH (Liste Blanche)
   
   Mises à jour :
-  - BUGFIX : Correction de la "Race Condition" au login. L'identité est vérifiée APRES le chargement des données.
-  - BUGFIX : Gestion de la date locale (Timezone) pour éviter le verrouillage intempestif des jours en 2026.
-  - BUGFIX : Normalisation des noms (insensible à la casse/espaces) pour la reconnaissance SSO.
-  - UI : Code remis au propre (indentation corrigée).
+  - FEATURE : Remplacement du mot de passe Admin par une vérification d'email (Allowlist).
+  - UI : Ajout de l'onglet "Gestion Admins" dans le panneau d'administration.
+  - LOGIC : Sauvegarde des emails admins dans la configuration Firebase.
 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -223,7 +222,7 @@
             </div>
 
             <!-- LOGO (OVERLAY) -->
-            <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-24 mx-auto mb-8 object-contain">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/2/23/Golden_Palace_Logo.svg" onerror="this.src='https://placehold.co/200x80?text=Golden+Palace'" alt="Golden Palace" class="h-24 mx-auto mb-8 object-contain">
             
             <div class="mb-8">
                 <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-tight uppercase" data-i18n="login_title">Espace Réservation de Sièges</h1>
@@ -255,7 +254,7 @@
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div class="flex items-center gap-6">
                 <!-- LOGO (HEADER) -->
-                <img src="goldenpalace_logo.svg" alt="Golden Palace" class="h-16 w-auto object-contain hidden md:block">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/2/23/Golden_Palace_Logo.svg" onerror="this.src='https://placehold.co/150x50?text=Golden+Palace'" alt="Golden Palace" class="h-16 w-auto object-contain hidden md:block">
                 
                 <div>
                     <h1 class="text-3xl font-black text-slate-800 tracking-tight leading-tight" data-i18n="main_title">Réservation de sièges</h1>
@@ -303,18 +302,6 @@
         <!-- Toast -->
         <div id="message-area" class="hidden fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full shadow-2xl font-bold text-sm text-center animate-bounce-in transition-all"></div>
 
-        <!-- Password Modal -->
-        <div id="password-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[70] hidden">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 w-80 transform transition-all scale-100">
-                <h3 class="text-lg font-bold text-slate-800 mb-2 text-center" data-i18n="admin_access">Accès Admin</h3>
-                <input type="password" id="admin-password-input" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 text-center focus:ring-2 focus:ring-[#c39400] outline-none font-bold text-lg" placeholder="••••••">
-                <div class="grid grid-cols-2 gap-3">
-                    <button id="cancel-password-btn" class="py-2 text-slate-500 hover:bg-slate-50 rounded-lg font-bold text-sm" data-i18n="cancel">Annuler</button>
-                    <button id="submit-password-btn" class="py-2 bg-[#c39400] text-white rounded-lg font-bold text-sm shadow-md hover:bg-[#a37c00]" data-i18n="validate">Valider</button>
-                </div>
-            </div>
-        </div>
-
         <!-- History Modal -->
         <div id="history-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[80] hidden">
             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg transform transition-all scale-100 max-h-[80vh] flex flex-col">
@@ -328,7 +315,7 @@
             </div>
         </div>
 
-        <!-- NEW ADMIN PANEL REDESIGN (With Red Border) -->
+        <!-- ADMIN PANEL -->
         <div id="admin-config-panel" class="hidden mb-8 bg-white border-2 border-red-500 rounded-2xl shadow-xl overflow-hidden relative">
             
             <!-- ADMIN BANNER -->
@@ -353,6 +340,9 @@
                         </button>
                         <button class="admin-nav-item w-full" data-tab="rules">
                             <span class="material-icons-round">desk</span> <span data-i18n="tab_rules">Gestion des Bureaux</span>
+                        </button>
+                         <button class="admin-nav-item w-full" data-tab="admins">
+                            <span class="material-icons-round">verified_user</span> <span data-i18n="tab_admins">Gestion Admins</span>
                         </button>
                         <button class="admin-nav-item w-full" data-tab="settings">
                             <span class="material-icons-round">settings</span> <span data-i18n="tab_settings">Paramètres Généraux</span>
@@ -495,8 +485,30 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- TAB 4: ADMIN MANAGEMENT (NEW) -->
+                    <div id="admin-tab-admins" class="admin-tab-content hidden">
+                         <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="admin_access_title">Gestion des Accès Admin</span>
+                        </h3>
+                        
+                        <div class="bg-purple-50 border border-purple-200 rounded-xl p-6 mb-6">
+                            <h4 class="font-bold text-purple-900 mb-2 flex items-center gap-2"><span class="material-icons-round">verified_user</span> Liste Blanche (Emails autorisés)</h4>
+                            <p class="text-sm text-purple-800 mb-4">Seuls les utilisateurs dont l'email figure dans cette liste peuvent activer le mode administrateur. Les emails par défaut sont protégés.</p>
+                            
+                            <div class="flex gap-3 mb-4">
+                                <input type="email" id="new-admin-email-input" placeholder="email@goldenpalace.be" class="flex-1 p-3 text-sm border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                                <button id="btn-add-admin-email" class="px-6 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition shadow-sm">Ajouter</button>
+                            </div>
+                            
+                            <div id="admin-emails-list" class="bg-white rounded-lg border border-purple-100 divide-y divide-purple-50 max-h-64 overflow-y-auto">
+                                <!-- List injected here -->
+                            </div>
+                        </div>
+                    </div>
 
-                    <!-- TAB 4: SETTINGS -->
+
+                    <!-- TAB 5: SETTINGS -->
                     <div id="admin-tab-settings" class="admin-tab-content hidden">
                         <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                             <span class="w-1 h-6 bg-[#c39400] rounded-full"></span> <span data-i18n="booking_settings">Paramètres de l'Application</span>
@@ -710,13 +722,14 @@
           appId: "1:317414717446:web:847a7fcb596a4abee92b87",
           measurementId: "G-W14YR02JY6"
         };
-        const ADMIN_PASSWORD = "admin123"; 
+        
+        const DEFAULT_ADMINS = ['jerome.moxhet@goldenpalace.be', 'it_infrastructure@goldenpalace.be'];
 
         // 2. CONSTANTS & UTILS
         const TRANSLATIONS = {
-            fr: { main_title: "Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Administration", add_user: "Nouveau Membre", edit_user: "Modifier Membre", update: "Mettre à jour", fixed_rules: "Attribution Places Fixes", add: "Ajouter", disable_desk: "Blocage Technique", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", unknown_dept: "Profil non configuré. Contactez l'IT.", users_list: "Annuaire complet", tab_users: "Membres & Équipes", tab_history: "Historique & Audit", tab_rules: "Gestion Bureaux", tab_settings: "Paramètres", users_management: "Gestion des Membres", desk_management: "Gestion des Bureaux", booking_settings: "Paramètres de l'Application", save_settings: "Sauvegarder tout", all_days: "Tous les jours", blocked_status: "Statut bloqué", delete_confirm: "Êtes-vous sûr de vouloir supprimer ?", locked_date: "Cette date est verrouillée (passée ou hors délai)." },
-            nl: { main_title: "Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Nieuw Lid", edit_user: "Lid Bewerken", update: "Updaten", fixed_rules: "Vaste Plaatsen", add: "Toevoegen", disable_desk: "Technische Blokkering", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", unknown_dept: "Profiel niet geconfigureerd. Neem contact op met IT.", users_list: "Volledige lijst", tab_users: "Leden & Teams", tab_history: "Geschiedenis & Audit", tab_rules: "Bureau Beheer", tab_settings: "Instellingen", users_management: "Ledenbeheer", desk_management: "Bureau Beheer", booking_settings: "App Instellingen", save_settings: "Alles opslaan", all_days: "Alle dagen", blocked_status: "Geblokkeerd", delete_confirm: "Weet je het zeker?", locked_date: "Datum vergrendeld." },
-            en: { main_title: "Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "New Member", edit_user: "Edit Member", update: "Update", fixed_rules: "Fixed Seats", add: "Add", disable_desk: "Technical Block", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", unknown_dept: "Profile not configured. Contact IT.", users_list: "Full Directory", tab_users: "Members & Teams", tab_history: "History & Audit", tab_rules: "Desk Mgmt", tab_settings: "Settings", users_management: "Member Management", desk_management: "Desk Management", booking_settings: "App Settings", save_settings: "Save All", all_days: "All days", blocked_status: "Blocked", delete_confirm: "Are you sure?", locked_date: "Date locked." }
+            fr: { main_title: "Réservation de sièges", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Accès Admin", cancel: "Annuler", validate: "Valider", admin_config: "Administration", add_user: "Nouveau Membre", edit_user: "Modifier Membre", update: "Mettre à jour", fixed_rules: "Attribution Places Fixes", add: "Ajouter", disable_desk: "Blocage Technique", block: "Bloquer", my_info: "Mes Informations", identity: "Identité", date: "Date", department: "Département", friday_goal: "Objectif Vendredi", fixed_days: "Jours Fixes", book_place: "Je réserve ma place", free: "Libre", occupied: "Occupé", my_res: "Ma rés.", fixed: "Fixe", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Départements", my_status: "Mon Statut", no_res: "Aucune réservation", selection: "Sélection", free_my_place: "Libérer ma place", reserve: "Réserver", admin_free: "Admin: Libérer", days: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], none: "Aucun", validated: "Validé ✅", fixed_place: "Place Fixe :", reserved: "Réservé :", occupied_by: "Occupé par", desk_disabled: "Bureau hors service", is_your_fixed: "C'est votre place fixe.", is_your_res: "C'est votre réservation.", release_first: "Libérez votre place actuelle d'abord.", fixed_error: "Place fixe attribuée pour ce jour.", res_confirmed: "Réservation confirmée !", place_freed: "Place libérée", unknown_dept: "Profil non configuré. Contactez l'IT. (Mettez à jour votre nom SSO dans l'admin)", users_list: "Annuaire complet", tab_users: "Membres & Équipes", tab_history: "Historique & Audit", tab_rules: "Gestion Bureaux", tab_admins: "Gestion Admins", tab_settings: "Paramètres", users_management: "Gestion des Membres", desk_management: "Gestion des Bureaux", booking_settings: "Paramètres de l'Application", save_settings: "Sauvegarder tout", all_days: "Tous les jours", blocked_status: "Statut bloqué", delete_confirm: "Êtes-vous sûr de vouloir supprimer ?", locked_date: "Cette date est verrouillée (passée ou hors délai).", admin_access_title: "Gestion des Accès Admin" },
+            nl: { main_title: "Stoelreservering", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Toegang", cancel: "Annuleren", validate: "Bevestigen", admin_config: "Admin Configuratie", add_user: "Nieuw Lid", edit_user: "Lid Bewerken", update: "Updaten", fixed_rules: "Vaste Plaatsen", add: "Toevoegen", disable_desk: "Technische Blokkering", block: "Blokkeer", my_info: "Mijn Gegevens", identity: "Identiteit", date: "Datum", department: "Afdeling", friday_goal: "Doelstelling Vrijdag", fixed_days: "Vaste Dagen", book_place: "Ik reserveer mijn plek", free: "Vrij", occupied: "Bezet", my_res: "Mijn res.", fixed: "Vast", zone_digital: "ZONE DIGITAL / CLUSTERS", zone_online: "ZONE ONLINE PRODUCTS", zone_design: "ZONE DESIGN STUDIO", legend_dept: "Afdelingen", my_status: "Mijn Status", no_res: "Geen reservatie", selection: "Selectie", free_my_place: "Mijn plek vrijgeven", reserve: "Reserveren", admin_free: "Admin: Vrijgeven", days: ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'], none: "Geen", validated: "Gevalideerd ✅", fixed_place: "Vaste Plek:", reserved: "Gereserveerd:", occupied_by: "Bezet door", desk_disabled: "Bureau buiten gebruik", is_your_fixed: "Dit is uw vaste plek.", is_your_res: "Dit is uw reservatie.", release_first: "Geef eerst uw huidige plek vrij.", fixed_error: "Vaste plek toegewezen voor vandaag.", res_confirmed: "Reservatie bevestigd!", place_freed: "Plek vrijgegeven", unknown_dept: "Profiel niet geconfigureerd. Neem contact op met IT.", users_list: "Volledige lijst", tab_users: "Leden & Teams", tab_history: "Geschiedenis & Audit", tab_rules: "Bureau Beheer", tab_admins: "Admin Beheer", tab_settings: "Instellingen", users_management: "Ledenbeheer", desk_management: "Bureau Beheer", booking_settings: "App Instellingen", save_settings: "Alles opslaan", all_days: "Alle dagen", blocked_status: "Geblokkeerd", delete_confirm: "Weet je het zeker?", locked_date: "Datum vergrendeld.", admin_access_title: "Admin Toegang Beheer" },
+            en: { main_title: "Seat Reservation", subtitle: "Paysager - Croix de guerre 120", admin_mode: "Admin", admin_access: "Admin Access", cancel: "Cancel", validate: "Validate", admin_config: "Admin Configuration", add_user: "New Member", edit_user: "Edit Member", update: "Update", fixed_rules: "Fixed Seats", add: "Add", disable_desk: "Technical Block", block: "Block", my_info: "My Information", identity: "Identity", date: "Date", department: "Department", friday_goal: "Friday Goal", fixed_days: "Fixed Days", book_place: "Book my seat", free: "Free", occupied: "Taken", my_res: "My res.", fixed: "Fixed", zone_digital: "DIGITAL ZONE / CLUSTERS", zone_online: "ONLINE PRODUCTS ZONE", zone_design: "DESIGN STUDIO ZONE", legend_dept: "Departments", my_status: "My Status", no_res: "No reservation", selection: "Selection", free_my_place: "Free my seat", reserve: "Book", admin_free: "Admin: Free", days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], none: "None", validated: "Validated ✅", fixed_place: "Fixed Seat:", reserved: "Booked:", occupied_by: "Occupied by", desk_disabled: "Desk disabled", is_your_fixed: "This is your fixed seat.", is_your_res: "This is your booking.", release_first: "Release your current seat first.", fixed_error: "Fixed seat assigned for today.", res_confirmed: "Booking confirmed!", place_freed: "Seat released", unknown_dept: "Profile not configured. Contact IT.", users_list: "Full Directory", tab_users: "Members & Teams", tab_history: "History & Audit", tab_rules: "Desk Mgmt", tab_admins: "Admins Mgmt", tab_settings: "Settings", users_management: "Member Management", desk_management: "Desk Management", booking_settings: "App Settings", save_settings: "Save All", all_days: "All days", blocked_status: "Blocked", delete_confirm: "Are you sure?", locked_date: "Date locked.", admin_access_title: "Admin Access Management" }
         };
 
         const DEPT_COLORS = {
@@ -742,6 +755,7 @@
         let usersData = {}; // Sera chargé depuis Firestore
         let fixedAssignmentsData = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
         let disabledDesksData = [];
+        let allowedAdminEmails = []; // NEW: List of admin emails
         let rawReservations = {}; 
         let weekReservationsRaw = []; 
         let selectedUser = { name: null, dept: null, fixedDesk: null };
@@ -846,6 +860,11 @@
             // Robust cleaning for comparisons
             if(!str) return "";
             return str.toLowerCase().trim().replace(/\s+/g, ' ');
+        }
+
+        function checkAdminAccess() {
+             if (!auth.currentUser || !auth.currentUser.email) return false;
+             return allowedAdminEmails.map(e => e.toLowerCase()).includes(auth.currentUser.email.toLowerCase());
         }
 
         function initTranslations() {
@@ -1288,6 +1307,40 @@
                  d.querySelector('button').onclick=async()=>{ disabledDesksData=disabledDesksData.filter(y=>y!==x); await saveConfig(); };
                  dList.appendChild(d);
              });
+             
+             // RENDER ADMIN EMAILS LIST (NEW)
+             const adminListContainer = document.getElementById('admin-emails-list');
+             adminListContainer.innerHTML = "";
+             allowedAdminEmails.forEach(email => {
+                 const item = document.createElement('div');
+                 item.className = "flex justify-between items-center p-3 text-sm";
+                 const isDefault = DEFAULT_ADMINS.includes(email.toLowerCase());
+                 
+                 let html = `
+                    <div class="flex items-center gap-2">
+                        <span class="material-icons-round text-xs ${isDefault ? 'text-purple-400' : 'text-slate-400'}">person</span>
+                        <span class="${isDefault ? 'font-bold text-purple-800' : 'text-slate-700'}">${email}</span>
+                        ${isDefault ? '<span class="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-bold uppercase">Default</span>' : ''}
+                    </div>
+                 `;
+                 
+                 if (!isDefault) {
+                     html += `<button class="delete-admin-btn text-slate-400 hover:text-red-500 transition" data-email="${email}"><span class="material-icons-round">delete</span></button>`;
+                 }
+                 
+                 item.innerHTML = html;
+                 adminListContainer.appendChild(item);
+             });
+             
+             document.querySelectorAll('.delete-admin-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    const email = btn.dataset.email;
+                    if(confirm(`Supprimer l'accès admin pour ${email} ?`)) {
+                        allowedAdminEmails = allowedAdminEmails.filter(e => e !== email);
+                        await saveConfig();
+                    }
+                };
+             });
         }
 
         function renderAdminSelectors() {
@@ -1439,8 +1492,9 @@
         async function saveConfig() { 
             await setDoc(doc(db, `/artifacts/${appId}/public/data/app_config/main`), { 
                 fixedAssignments: JSON.stringify(fixedAssignmentsData), 
-                disabledDesks: JSON.stringify(disabledDesksData), 
-                bookingRules: JSON.stringify(bookingRules) 
+                disabledDesks: JSON.stringify(disabledDesksData),
+                bookingRules: JSON.stringify(bookingRules),
+                adminEmails: JSON.stringify(allowedAdminEmails) // SAVE ADMIN EMAILS
             }); 
             updateGlobalState(); 
         }
@@ -1474,7 +1528,20 @@
                     try { fixedAssignmentsData = JSON.parse(data.fixedAssignments || '{}'); } catch(e) { fixedAssignmentsData = {}; } 
                     try { disabledDesksData = JSON.parse(data.disabledDesks || '[]'); } catch(e) { disabledDesksData = []; } 
                     try { bookingRules = JSON.parse(data.bookingRules || '{"cutoffHour":5, "dayOffset":0, "requiredFridays":1}'); } catch(e) { bookingRules = {cutoffHour:5, dayOffset:0, requiredFridays:1}; }
-                } else { saveConfig(); } 
+                    // LOAD ADMIN EMAILS
+                    try { 
+                        allowedAdminEmails = JSON.parse(data.adminEmails || '[]');
+                        // Ensure defaults are always present
+                        DEFAULT_ADMINS.forEach(email => {
+                            if (!allowedAdminEmails.map(e=>e.toLowerCase()).includes(email.toLowerCase())) {
+                                allowedAdminEmails.push(email);
+                            }
+                        });
+                    } catch(e) { allowedAdminEmails = [...DEFAULT_ADMINS]; }
+                } else { 
+                    allowedAdminEmails = [...DEFAULT_ADMINS];
+                    saveConfig(); 
+                } 
                 updateGlobalState(); 
             }); 
         }
@@ -1589,6 +1656,23 @@
              };
              
              document.getElementById('admin-day-select').onchange = renderAdminLists;
+             
+             // ADMIN EMAIL BUTTON
+             document.getElementById('btn-add-admin-email').onclick = async () => {
+                 const newEmail = document.getElementById('new-admin-email-input').value.trim();
+                 if (newEmail && newEmail.includes('@')) {
+                     if (!allowedAdminEmails.map(e => e.toLowerCase()).includes(newEmail.toLowerCase())) {
+                         allowedAdminEmails.push(newEmail);
+                         await saveConfig();
+                         document.getElementById('new-admin-email-input').value = '';
+                         toast("Admin ajouté", "success");
+                     } else {
+                         toast("Email déjà autorisé", "error");
+                     }
+                 } else {
+                     toast("Email invalide", "error");
+                 }
+             };
         }
 
         // --- AUTH LOGIC ---
@@ -1634,13 +1718,18 @@
             const dot = document.querySelector('.dot');
             
             toggle.addEventListener('change', (e) => {
+                // PASSWORD REMOVED -> EMAIL CHECK
                 if(e.target.checked) { 
-                    dot.style.transform = 'translateX(100%)'; 
-                    bg.classList.remove('bg-slate-200'); 
-                    bg.classList.add('bg-red-600'); 
-                    document.getElementById('password-modal').classList.remove('hidden'); 
-                    document.getElementById('admin-password-input').value = ''; 
-                    document.getElementById('admin-password-input').focus(); 
+                     // Check Access
+                     if (checkAdminAccess()) {
+                        dot.style.transform = 'translateX(100%)'; 
+                        bg.classList.remove('bg-slate-200'); 
+                        bg.classList.add('bg-red-600'); 
+                        enableAdminMode();
+                     } else {
+                        e.target.checked = false; // Revert checkbox
+                        toast("Accès refusé. Votre email n'est pas autorisé.", "error");
+                     }
                 } else { 
                     dot.style.transform = 'translateX(0)'; 
                     bg.classList.add('bg-slate-200'); 
@@ -1648,23 +1737,6 @@
                     disableAdminMode(); 
                 }
             });
-            
-            document.getElementById('cancel-password-btn').onclick = () => { 
-                document.getElementById('password-modal').classList.add('hidden'); 
-                toggle.checked = false; 
-                dot.style.transform = 'translateX(0)'; 
-                bg.classList.add('bg-slate-200'); 
-                bg.classList.remove('bg-red-600'); 
-            };
-            
-            document.getElementById('submit-password-btn').onclick = () => { 
-                if(document.getElementById('admin-password-input').value === ADMIN_PASSWORD) { 
-                    document.getElementById('password-modal').classList.add('hidden'); 
-                    enableAdminMode(); 
-                } else { 
-                    toast("Mot de passe incorrect", "error"); 
-                } 
-            };
             
             // FIX: Use getLocalTodayString for default value
             const today = getLocalTodayString(); 
